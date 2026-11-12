@@ -1,0 +1,1873 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Wordweft: swipe words out of a grid of letters. Solo or live head-to-head.">
+<title>Wordweft</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<style>
+/* Layout: one phone-width column. The letter grid is the stage; clock, word and found list are a thin frame around it. */
+:root {
+  --bg: #E7EBF5; --weave: rgba(47, 63, 166, .05); --veil: rgba(231, 235, 245, .9); --scrim: rgba(13, 17, 48, .5);
+  --panel: #F4F6FB; --card: #FFFFFF; --line: #CBD2E6; --shadow: rgba(23, 28, 63, .16);
+  --ink: #171C3F; --ink2: #474E78; --ink3: #6C749C;
+  --tile: #FFFFFF; --tile-edge: #B7C0DD; --tile-ink: #171C3F;
+  --sel: #2F3FA6; --sel-edge: #1D2875; --sel-ink: #FFFFFF;
+  --thread: #F2A000;
+  --good: #10835A; --good-edge: #0A5C3F; --good-ink: #FFFFFF;
+  --dup: #B26B00; --dup-edge: #7E4C00; --dup-ink: #FFFFFF;
+  --bad: #C22F4A; --bad-edge: #8C1F33; --bad-ink: #FFFFFF;
+  --accent: #2F3FA6; --accent-ink: #FFFFFF; --accent-soft: #DEE3F8;
+  --you: #2F3FA6; --you-soft: #DEE3F8; --them: #AD2B77; --them-soft: #F7DEEC;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1130; --weave: rgba(144, 156, 255, .05); --veil: rgba(13, 17, 48, .9); --scrim: rgba(3, 5, 20, .62);
+    --panel: #141A40; --card: #1A2150; --line: #2B3472; --shadow: rgba(0, 0, 0, .45);
+    --ink: #EEF0FF; --ink2: #B5BBE3; --ink3: #8B93C4;
+    --tile: #242D68; --tile-edge: #080B22; --tile-ink: #F3F4FF;
+    --sel: #909CFF; --sel-edge: #5561C9; --sel-ink: #0B0F2B;
+    --thread: #FFC02E;
+    --good: #3FD998; --good-edge: #1F9B68; --good-ink: #052418;
+    --dup: #F3B544; --dup-edge: #B37F1B; --dup-ink: #2A1C00;
+    --bad: #FF7C92; --bad-edge: #C44A60; --bad-ink: #33060F;
+    --accent: #909CFF; --accent-ink: #0B0F2B; --accent-soft: #232B66;
+    --you: #909CFF; --you-soft: #232B66; --them: #F182C3; --them-soft: #3B1B33;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1130; --weave: rgba(144, 156, 255, .05); --veil: rgba(13, 17, 48, .9); --scrim: rgba(3, 5, 20, .62);
+  --panel: #141A40; --card: #1A2150; --line: #2B3472; --shadow: rgba(0, 0, 0, .45);
+  --ink: #EEF0FF; --ink2: #B5BBE3; --ink3: #8B93C4;
+  --tile: #242D68; --tile-edge: #080B22; --tile-ink: #F3F4FF;
+  --sel: #909CFF; --sel-edge: #5561C9; --sel-ink: #0B0F2B;
+  --thread: #FFC02E;
+  --good: #3FD998; --good-edge: #1F9B68; --good-ink: #052418;
+  --dup: #F3B544; --dup-edge: #B37F1B; --dup-ink: #2A1C00;
+  --bad: #FF7C92; --bad-edge: #C44A60; --bad-ink: #33060F;
+  --accent: #909CFF; --accent-ink: #0B0F2B; --accent-soft: #232B66;
+  --you: #909CFF; --you-soft: #232B66; --them: #F182C3; --them-soft: #3B1B33;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; color: var(--ink); background-color: var(--bg);
+  background-image:
+    repeating-linear-gradient(0deg, var(--weave) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(90deg, var(--weave) 0 1px, transparent 1px 8px);
+  font: 400 16px/1.45 var(--f-body);
+  overscroll-behavior: none; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+button[disabled] { cursor: default; }
+:focus-visible { outline: 3px solid var(--thread); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+
+#app {
+  height: 100%; max-width: 540px; margin-inline: auto; padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column;
+}
+.screen { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 18px; }
+.screen.scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 4px 2px 8px; margin-inline: -2px; }
+.screen.scroll > * { flex-shrink: 0; }
+
+.label { font: 600 12px/1.2 var(--f-body); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+
+/* ---------- top bar, logo ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+.top h1 { font: 800 22px/1 var(--f-display); }
+.iconbtn {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; color: var(--ink2);
+  background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.iconbtn svg { width: 22px; height: 22px; }
+.iconbtn .off, .iconbtn[aria-pressed="false"] .on { display: none; }
+.iconbtn[aria-pressed="false"] .off { display: inline; }
+.spacer { width: 44px; }
+
+.logo { position: relative; display: grid; grid-template-columns: repeat(4, 40px); gap: 6px; }
+.logo svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.logo polyline { fill: none; stroke: var(--thread); stroke-width: 13; stroke-linecap: round; }
+.logo span {
+  position: relative; height: 40px; display: grid; place-items: center; border-radius: 22%;
+  background: var(--tile); color: var(--tile-ink); box-shadow: 0 3px 0 var(--tile-edge);
+  font: 800 22px/1 var(--f-display);
+}
+.logo span:nth-of-type(n+5) { background: var(--sel); color: var(--sel-ink); box-shadow: 0 3px 0 var(--sel-edge); border-radius: 40%; }
+.lede { font-size: 17px; color: var(--ink2); max-width: 36ch; text-wrap: pretty; }
+
+/* ---------- settings ---------- */
+.setup { display: grid; gap: 20px; padding: 18px; background: var(--card); border-radius: 20px; box-shadow: 0 1px 0 var(--line), 0 18px 34px -24px var(--shadow); }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.val { font: 700 16px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.seg button {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 10px; border-radius: 14px;
+  background: var(--panel); color: var(--ink2); font: 700 15px/1 var(--f-display);
+  box-shadow: inset 0 0 0 1.5px var(--line); transition: background-color .12s, color .12s, box-shadow .12s;
+}
+.seg button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.seg .g {
+  width: 30px; height: 30px;
+  background-image: radial-gradient(circle at center, currentColor 0 34%, transparent 38%);
+  background-size: calc(100% / var(--n)) calc(100% / var(--n));
+}
+.slider { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 34px; margin: 0; background: transparent; cursor: pointer; }
+.slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--thread) var(--p, 50%), var(--line) var(--p, 50%)); }
+.slider::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--thread) var(--p, 50%), var(--line) var(--p, 50%)); }
+.slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -13px; border: 0; border-radius: 40%; background: var(--sel); box-shadow: 0 3px 0 var(--sel-edge); }
+.slider::-moz-range-thumb { width: 30px; height: 30px; border: 0; border-radius: 40%; background: var(--sel); box-shadow: 0 3px 0 var(--sel-edge); }
+.stops { display: flex; justify-content: space-between; margin-top: 2px; }
+.stops button { width: 30px; padding: 7px 0; font: 600 13px/1 var(--f-body); color: var(--ink3); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.stops button.on { color: var(--ink); font-weight: 700; }
+.setup.locked { opacity: .8; }
+.setup.locked .slider, .setup.locked button { cursor: default; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px; padding: 0 20px;
+  border-radius: 16px; font: 700 17px/1.1 var(--f-display); text-align: center;
+  background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line), 0 3px 0 var(--line);
+  transition: transform .06s, box-shadow .06s;
+}
+.btn:active:not([disabled]) { transform: translateY(2px); box-shadow: inset 0 0 0 1.5px var(--line), 0 1px 0 var(--line); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 0 var(--sel-edge); }
+.btn.primary:active:not([disabled]) { transform: translateY(3px); box-shadow: 0 1px 0 var(--sel-edge); }
+.btn.danger { background: var(--bad); color: var(--bad-ink); box-shadow: 0 4px 0 var(--bad-edge); }
+.btn[disabled] { opacity: .45; }
+.btn.small { min-height: 44px; padding: 0 14px; font-size: 15px; border-radius: 13px; }
+.cta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.link { align-self: center; padding: 8px; font: 600 15px/1.2 var(--f-body); color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- home extras ---------- */
+.open h2, .rules h2 { font: 600 12px/1.2 var(--f-body); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); margin-bottom: 10px; }
+.open ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.open li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); }
+.open li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ladder { display: grid; grid-template-columns: auto repeat(6, 1fr); gap: 6px 4px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.ladder span { font: 600 13px/1.2 var(--f-body); color: var(--ink3); }
+.ladder b { font: 700 17px/1 var(--f-display); text-align: center; }
+.ladder i { font: 500 14px/1 var(--f-body); font-style: normal; color: var(--ink2); text-align: center; }
+.rules p { margin-top: 10px; font-size: 14px; color: var(--ink2); }
+
+/* ---------- lobby ---------- */
+.code { display: flex; justify-content: center; gap: 8px; }
+.code span { width: 50px; height: 56px; display: grid; place-items: center; border-radius: 22%; background: var(--tile); color: var(--tile-ink); box-shadow: 0 4px 0 var(--tile-edge); font: 800 28px/1 var(--f-display); text-transform: uppercase; }
+.share { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.linkbox { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--panel); font: 500 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.note { font-size: 14px; color: var(--ink2); text-align: center; text-wrap: balance; }
+.seats { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 10px; }
+.seat { display: grid; gap: 4px; align-content: center; min-width: 0; padding: 10px 12px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); }
+.seat.you .label { color: var(--you); }
+.seat.them .label { color: var(--them); }
+.seat input { width: 100%; min-width: 0; padding: 2px 0; border: 0; border-bottom: 1.5px dashed var(--line); border-radius: 0; background: transparent; font: 700 18px/1.2 var(--f-display); }
+.seat .nm { font: 700 18px/1.3 var(--f-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat.waiting .nm { color: var(--ink3); font-weight: 600; }
+.seats .vs { align-self: center; }
+.status { min-height: 1.45em; font-size: 14px; color: var(--ink2); text-align: center; text-wrap: balance; }
+
+/* ---------- game ---------- */
+#game { gap: 12px; }
+.play { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.hud .iconbtn { justify-self: start; }
+.clock { min-width: 3.4ch; text-align: center; font: 800 40px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.hud.hurry .clock { color: var(--bad); animation: beat 1s ease-in-out infinite; }
+.pts { justify-self: end; text-align: right; font: 800 28px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.pts small { display: block; margin-top: 3px; font: 600 11px/1 var(--f-body); letter-spacing: .09em; text-transform: uppercase; color: var(--ink3); }
+.pts.bump b { display: inline-block; animation: bump .22s ease-out; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--thread); transform-origin: left center; }
+.rivals { display: flex; justify-content: space-between; gap: 12px; font: 600 13px/1.2 var(--f-body); color: var(--ink2); }
+.rivals span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rivals b { font: 800 15px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.rivals .you b { color: var(--you); }
+.rivals .them b { color: var(--them); }
+.wordbar { height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.word { font: 800 36px/1 var(--f-display); letter-spacing: .04em; white-space: nowrap; }
+.wtag { padding: 6px 9px; border-radius: 9px; font: 700 14px/1 var(--f-display); background: var(--line); color: var(--ink); }
+.wtag:empty { display: none; }
+.wordbar .hint { font: 500 15px/1.2 var(--f-body); color: var(--ink3); text-align: center; }
+.wordbar[data-st="good"] .word { color: var(--good); }
+.wordbar[data-st="good"] .wtag { background: var(--good); color: var(--good-ink); }
+.wordbar[data-st="dup"] .word { color: var(--dup); }
+.wordbar[data-st="dup"] .wtag { background: var(--dup); color: var(--dup-ink); }
+.wordbar[data-st="bad"] .word { color: var(--bad); }
+.wordbar[data-st="bad"] .wtag { background: var(--bad); color: var(--bad-ink); }
+.wordbar.shake .word { animation: shake .28s ease-in-out; }
+.wordbar.pop .word { animation: pop .24s ease-out; }
+.stage { flex: 1 1 0; min-height: 0; display: grid; place-items: center; }
+.board { position: relative; touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.board svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.board polyline { fill: none; stroke: var(--thread); stroke-width: calc(var(--t, 60px) * .3); stroke-linecap: round; stroke-linejoin: round; }
+.tiles { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: var(--gap, 8px); pointer-events: none; }
+.tile {
+  display: grid; place-items: center; border-radius: 20%; background: var(--tile); color: var(--tile-ink);
+  box-shadow: 0 calc(var(--t, 60px) * .07) 0 var(--tile-edge);
+  font: 800 calc(var(--t, 60px) * .52)/1 var(--f-display);
+  transition: transform .08s ease-out, border-radius .1s ease-out;
+}
+.tile.qu { font-size: calc(var(--t, 60px) * .4); }
+.tile.sel { background: var(--sel); color: var(--sel-ink); box-shadow: 0 calc(var(--t, 60px) * .05) 0 var(--sel-edge); border-radius: 40%; transform: scale(.93); }
+.board[data-st="good"] .tile.sel { background: var(--good); color: var(--good-ink); box-shadow: 0 calc(var(--t, 60px) * .05) 0 var(--good-edge); }
+.board[data-st="dup"] .tile.sel { background: var(--dup); color: var(--dup-ink); box-shadow: 0 calc(var(--t, 60px) * .05) 0 var(--dup-edge); }
+.tile.fl-good { animation: flGood .42s ease-out; }
+.tile.fl-dup { animation: flDup .42s ease-out; }
+.tile.fl-bad { animation: flBad .42s ease-out; }
+.board.veil .tile span { visibility: hidden; }
+.board.veil .tile { background: var(--panel); }
+.found { flex: 0 0 auto; height: clamp(88px, 19vh, 150px); display: flex; flex-direction: column; gap: 8px; }
+.found-head { display: flex; justify-content: space-between; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
+.found .chips { flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 9px; border-radius: 9px;
+  background: var(--card); box-shadow: inset 0 0 0 1px var(--line);
+  font: 700 14px/1 var(--f-display); letter-spacing: .03em; text-transform: uppercase;
+}
+.chip small { font: 600 11px/1 var(--f-body); letter-spacing: 0; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.chip.new { animation: chipIn .24s ease-out; }
+.chip.pulse { animation: chipPulse .55s ease-out; }
+.empty { font-size: 14px; color: var(--ink3); }
+
+@media (min-width: 880px) and (min-height: 520px) {
+  body[data-screen="game"] #app { max-width: 920px; }
+  #game { display: grid; grid-template-columns: minmax(0, 1fr) 270px; column-gap: 34px; }
+  .found { height: auto; min-height: 0; padding-top: 6px; }
+}
+
+/* ---------- results ---------- */
+.res-head { display: grid; gap: 6px; }
+.res-title { font: 800 40px/1.02 var(--f-display); letter-spacing: -.01em; text-wrap: balance; }
+.tally { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tally .t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; padding: 12px 14px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); }
+.tally .t span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink2); }
+.tally .t b { font: 800 34px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.tally .you b { color: var(--you); }
+.tally .them b { color: var(--them); }
+.tally .t.win { box-shadow: inset 0 0 0 3px var(--thread); }
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; cursor: pointer; }
+.col h3 { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 8px; font: 600 11px/1.2 var(--f-body); letter-spacing: .07em; text-transform: uppercase; color: var(--ink3); }
+.col h3 span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col h3 em { font-style: normal; color: var(--ink2); }
+.col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.col li { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; min-width: 0; padding: 7px 8px; border-radius: 8px; background: var(--card); font: 700 13px/1.1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; animation: chipIn .22s ease-out; }
+.col li span { min-width: 0; overflow-wrap: anywhere; }
+.col li small { flex: none; font: 700 11px/1 var(--f-body); letter-spacing: 0; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.col.you li { background: var(--you-soft); }
+.col.you li small { color: var(--you); }
+.col.them li { background: var(--them-soft); }
+.col.them li small { color: var(--them); }
+.col .none { padding: 7px 0; font-size: 13px; color: var(--ink3); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.stat { min-width: 0; padding: 12px 14px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1.5px var(--line); }
+.stat b { display: block; margin-top: 6px; font: 800 24px/1.05 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#stLong { text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; overflow: hidden; }
+.missed { padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.missed summary { cursor: pointer; font: 600 14px/1.3 var(--f-body); color: var(--ink2); }
+.missed .chips { margin-top: 12px; }
+.missed .more { margin-top: 10px; font-size: 13px; color: var(--ink3); }
+#results, #lobby { padding-bottom: 0; }
+.actions.foot { grid-template-columns: 1fr; }
+.actions { position: sticky; bottom: 0; margin-top: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; padding-block: 16px 8px; background: linear-gradient(to top, var(--bg) 78%, transparent); }
+
+/* ---------- overlays ---------- */
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; }
+#count { background: var(--veil); text-align: center; align-content: center; gap: 6px; pointer-events: none; }
+#countNum { font: 800 clamp(120px, 44vw, 230px)/1 var(--f-display); font-variant-numeric: tabular-nums; }
+#countNum.txt { font-size: clamp(60px, 19vw, 120px); }
+#countNum.tick { animation: countIn .5s cubic-bezier(.2, .9, .3, 1.2); }
+#count.go { background: none; }
+#count.go #countNum { animation: goOut .5s ease-out forwards; }
+#sheet { background: var(--scrim); align-items: end; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 600px) { #sheet { align-items: center; } }
+.sheet-box { width: min(100%, 420px); display: grid; gap: 14px; padding: 22px; border-radius: 22px; background: var(--card); box-shadow: 0 30px 60px -20px var(--shadow); }
+.sheet-box h2 { font: 800 22px/1.15 var(--f-display); text-wrap: balance; }
+.sheet-box p { color: var(--ink2); }
+.sheet-box input { width: 100%; padding: 14px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--panel); font: 800 26px/1 var(--f-display); letter-spacing: .2em; text-align: center; text-transform: uppercase; }
+.sheet-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+#toast {
+  position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px)); z-index: 40; max-width: min(92vw, 420px);
+  padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font: 600 14px/1.3 var(--f-body); text-align: center;
+  opacity: 0; transform: translate(-50%, -16px); pointer-events: none; transition: opacity .18s, transform .18s;
+}
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+@keyframes beat { 50% { transform: scale(1.07); } }
+@keyframes bump { 40% { transform: scale(1.28); } }
+@keyframes shake { 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 90% { transform: translateX(2px); } }
+@keyframes pop { 40% { transform: scale(1.12); } }
+@keyframes chipIn { from { opacity: 0; transform: translateY(-6px) scale(.9); } }
+@keyframes chipPulse { 30% { background: var(--dup); color: var(--dup-ink); transform: scale(1.08); } }
+@keyframes flGood { 0%, 35% { background: var(--good); color: var(--good-ink); } }
+@keyframes flDup { 0%, 35% { background: var(--dup); color: var(--dup-ink); } }
+@keyframes flBad { 0%, 35% { background: var(--bad); color: var(--bad-ink); } }
+@keyframes countIn { from { opacity: 0; transform: scale(1.5); } }
+@keyframes goOut { from { opacity: .95; transform: scale(.9); } to { opacity: 0; transform: scale(1.7); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div id="app">
+
+  <section class="screen scroll" id="home">
+    <header class="top">
+      <div class="logo" role="img" aria-label="Wordweft">
+        <svg viewBox="0 0 178 86" aria-hidden="true"><polyline points="20,66 158,66"/></svg>
+        <span>W</span><span>O</span><span>R</span><span>D</span><span>W</span><span>E</span><span>F</span><span>T</span>
+      </div>
+      <button class="iconbtn" id="soundBtn" type="button" aria-label="Sound" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z" fill="currentColor" stroke="none"/>
+          <path class="on" d="M15.5 9a4.5 4.5 0 010 6M18.3 6.5a8 8 0 010 11"/>
+          <path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/>
+        </svg>
+      </button>
+    </header>
+    <p class="lede">Thread words through a grid of letters. Drag from one letter to any neighbour, three letters or more, before the clock runs out.</p>
+    <div class="open" id="openDuels" hidden>
+      <h2>Open duels</h2>
+      <ul id="openList"></ul>
+    </div>
+    <div class="setup" id="homeSetup"></div>
+    <div class="cta">
+      <button class="btn primary" id="playSolo" type="button">Play solo</button>
+      <button class="btn" id="playDuel" type="button">Duel a friend</button>
+    </div>
+    <button class="link" id="haveCode" type="button">Have a room code? Join a duel</button>
+    <div class="rules">
+      <h2>Scoring</h2>
+      <div class="ladder">
+        <span>Letters</span><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b>
+        <span>Points</span><i>1</i><i>2</i><i>4</i><i>7</i><i>11</i><i>16</i>
+      </div>
+      <p>Each extra letter is worth more than the last. In a duel, a word only you found counts double.</p>
+    </div>
+  </section>
+
+  <section class="screen scroll" id="lobby" hidden>
+    <header class="top">
+      <button class="iconbtn" id="lobbyBack" type="button" aria-label="Leave room">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1>Duel room</h1>
+      <span class="spacer"></span>
+    </header>
+    <div class="code" id="codeTiles" role="img" aria-label="Room code"></div>
+    <div class="share">
+      <button class="btn small" id="copyLink" type="button">Copy invite link</button>
+      <button class="btn small" id="copyCode" type="button">Copy code</button>
+    </div>
+    <input class="linkbox" id="linkBox" type="text" readonly hidden aria-label="Invite link">
+    <p class="note" id="lobbyNote"></p>
+    <div class="seats">
+      <div class="seat you"><span class="label">You</span><input id="nameInput" type="text" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Your name"></div>
+      <span class="vs label">vs</span>
+      <div class="seat them waiting" id="oppSeat"><span class="label">Opponent</span><span class="nm" id="oppName">Waiting</span></div>
+    </div>
+    <div class="setup" id="lobbySetup"></div>
+    <div class="actions foot">
+      <p class="status" id="lobbyStatus" role="status"></p>
+      <button class="btn primary" id="startDuel" type="button" disabled>Start duel</button>
+    </div>
+  </section>
+
+  <section class="screen" id="game" hidden>
+    <div class="play">
+      <header class="hud" id="hud">
+        <button class="iconbtn" id="quit" type="button" aria-label="End round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <div class="clock" id="time" role="timer">1:30</div>
+        <div class="pts" id="pts"><b id="score">0</b><small>points</small></div>
+      </header>
+      <div class="bar" id="bar"><i id="barFill"></i></div>
+      <div class="rivals" id="rivals" hidden>
+        <span class="you">You <b id="rvYou">0</b></span>
+        <span class="them"><b id="rvThem">0</b> <span id="rvName">Friend</span></span>
+      </div>
+      <div class="wordbar" id="wordbar" aria-live="polite">
+        <span class="word" id="word"></span><span class="wtag" id="wtag"></span>
+        <span class="hint" id="hint">Swipe, tap or type a word</span>
+      </div>
+      <div class="stage" id="stage">
+        <div class="board veil" id="board">
+          <svg id="thread" aria-hidden="true"><polyline id="threadLine" points=""/></svg>
+          <div class="tiles" id="tiles"></div>
+        </div>
+      </div>
+    </div>
+    <div class="found">
+      <div class="found-head"><span class="label" id="fcount">0 words</span><span class="label" id="fbest"></span></div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </section>
+
+  <section class="screen scroll" id="results" hidden>
+    <div class="res-head">
+      <p class="label" id="resKicker"></p>
+      <h1 class="res-title" id="resTitle"></h1>
+    </div>
+    <div class="tally" id="tally" hidden>
+      <div class="t you" id="tYouBox"><span>You</span><b id="tYou">0</b></div>
+      <div class="t them" id="tThemBox"><span id="tThemName">Friend</span><b id="tThem">0</b></div>
+    </div>
+    <div class="stats" id="stats" hidden>
+      <div class="stat"><span class="label">Points</span><b id="stScore">0</b></div>
+      <div class="stat"><span class="label">Words</span><b id="stWords">0</b></div>
+      <div class="stat"><span class="label">Longest</span><b id="stLong"></b></div>
+      <div class="stat"><span class="label">Best</span><b id="stBest">0</b></div>
+    </div>
+    <div class="cols" id="cols" hidden>
+      <div class="col you"><h3><span>Only you</span><em>×2</em></h3><ul id="cYou"></ul></div>
+      <div class="col both"><h3><span>Both</span></h3><ul id="cBoth"></ul></div>
+      <div class="col them"><h3><span id="cThemName">Only them</span><em>×2</em></h3><ul id="cThem"></ul></div>
+    </div>
+    <div class="chips" id="soloList" hidden></div>
+    <details class="missed" id="missed" hidden>
+      <summary id="missedSum"></summary>
+      <div class="chips" id="missedList"></div>
+      <p class="more" id="missedMore" hidden></p>
+    </details>
+    <p class="status" id="resStatus" role="status"></p>
+    <div class="actions" id="resActions"></div>
+  </section>
+
+  <div class="overlay" id="count" hidden>
+    <p class="label" id="countLabel"></p>
+    <div id="countNum"></div>
+  </div>
+  <div class="overlay" id="sheet" hidden><div class="sheet-box" id="sheetBox" role="dialog" aria-modal="true"></div></div>
+  <div id="toast" role="status"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* Wordweft core: dictionary, board generation, solver, scoring. No DOM. */
+const Core = (() => {
+  let W = [];            // sorted word list
+  let WSET = new Set();
+
+  /* The packed list is front-coded: a capital letter (shared-prefix length, A=0) then the new suffix. */
+  function loadDict(packed) {
+    const out = [];
+    let prev = '', i = 0;
+    const n = packed.length;
+    while (i < n) {
+      const k = packed.charCodeAt(i) - 65;
+      let j = i + 1;
+      while (j < n && packed.charCodeAt(j) >= 97) j++;
+      prev = prev.slice(0, k) + packed.slice(i + 1, j);
+      out.push(prev);
+      i = j;
+    }
+    W = out;
+    WSET = new Set(out);
+    return out.length;
+  }
+
+  const isWord = w => WSET.has(w);
+
+  /* 3 letters = 1, then each extra letter is worth one more than the last step: 1, 2, 4, 7, 11, 16, 22 ... */
+  const points = len => (len < 3 ? 0 : 1 + ((len - 3) * (len - 2)) / 2);
+
+  const nbCache = {};
+  function neighbors(size) {
+    if (nbCache[size]) return nbCache[size];
+    const out = [];
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+      const a = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const rr = r + dr, cc = c + dc;
+        if (rr >= 0 && cc >= 0 && rr < size && cc < size) a.push(rr * size + cc);
+      }
+      out.push(a);
+    }
+    return (nbCache[size] = out);
+  }
+  const adjacent = (size, a, b) => {
+    const dr = Math.abs(((a / size) | 0) - ((b / size) | 0)), dc = Math.abs((a % size) - (b % size));
+    return (dr | dc) !== 0 && dr <= 1 && dc <= 1;
+  };
+
+  /* A tile holding "q" plays as "qu". */
+  const tileText = ch => (ch === 'q' ? 'qu' : ch);
+  const wordOf = (board, path) => { let s = ''; for (let k = 0; k < path.length; k++) s += tileText(board[path[k]]); return s; };
+
+  /* Every word on the board. Walks the grid while narrowing a [lo, hi) window of the sorted
+     list to the words that share the current prefix, so dead ends are cut immediately. */
+  function solve(board, size, minLen) {
+    const N = size * size, nb = neighbors(size), found = new Map();
+    const used = new Uint8Array(N), path = [];
+    let nlo = 0, nhi = 0;
+    function narrow(lo, hi, d, c) {
+      let a = lo, b = hi;
+      while (a < b) { const m = (a + b) >> 1; if (W[m].charCodeAt(d) >= c) b = m; else a = m + 1; }
+      nlo = a; b = hi;
+      while (a < b) { const m = (a + b) >> 1; if (W[m].charCodeAt(d) > c) b = m; else a = m + 1; }
+      nhi = a;
+    }
+    function dfs(i, lo, hi, d, word) {
+      const ch = board[i];
+      narrow(lo, hi, d, ch.charCodeAt(0)); d++;
+      if (nlo >= nhi) return;
+      if (ch === 'q') { narrow(nlo, nhi, d, 117); d++; if (nlo >= nhi) return; word += 'qu'; } else word += ch;
+      const l = nlo, h = nhi;
+      used[i] = 1; path.push(i);
+      if (d >= minLen && W[l].length === d && !found.has(word)) found.set(word, path.slice());
+      const ns = nb[i];
+      for (let k = 0; k < ns.length; k++) if (!used[ns[k]]) dfs(ns[k], l, h, d, word);
+      used[i] = 0; path.pop();
+    }
+    for (let i = 0; i < N; i++) dfs(i, 0, W.length, 0, '');
+    return found;
+  }
+
+  /* A path that spells `word` on the board (for keyboard play), or null. */
+  function findPath(board, size, word) {
+    const N = size * size, nb = neighbors(size), used = new Uint8Array(N), path = [];
+    function go(i, pos) {
+      const ch = board[i];
+      let L = 0;
+      if (ch === 'q') { if (word.startsWith('qu', pos)) L = 2; } else if (word[pos] === ch) L = 1;
+      if (!L) return false;
+      used[i] = 1; path.push(i);
+      if (pos + L === word.length) return true;
+      const ns = nb[i];
+      for (let k = 0; k < ns.length; k++) if (!used[ns[k]] && go(ns[k], pos + L)) return true;
+      used[i] = 0; path.pop();
+      return false;
+    }
+    for (let i = 0; i < N; i++) if (go(i, 0)) return path.slice();
+    return null;
+  }
+
+  /* Letter weights tuned for swipe play: roughly how often each letter turns up in dictionary
+     words, with S pulled down a little so boards are not all plurals. */
+  const VOWELS = { e: 11.4, a: 8.6, i: 7.4, o: 7.0, u: 3.4 };
+  const CONSONANTS = {
+    t: 7.0, r: 6.9, n: 6.6, s: 5.4, l: 5.3, d: 4.1, c: 3.6, m: 3.1, p: 3.1, h: 2.9, g: 2.7,
+    b: 2.1, y: 2.0, f: 1.9, w: 1.5, k: 1.4, v: 1.2, x: 0.45, z: 0.45, j: 0.4, q: 0.4
+  };
+  const RARE = 'jqxz';
+  function draw(table, counts, cap, rareLeft, rnd) {
+    let total = 0;
+    const keys = Object.keys(table), ok = [];
+    for (const k of keys) {
+      const isRare = RARE.includes(k);
+      if ((counts[k] || 0) >= (isRare ? 1 : cap)) continue;
+      if (isRare && rareLeft <= 0) continue;
+      ok.push(k); total += table[k];
+    }
+    let x = rnd() * total;
+    for (const k of ok) { x -= table[k]; if (x <= 0) return k; }
+    return ok[ok.length - 1];
+  }
+  function rollBoard(size, rnd) {
+    rnd = rnd || Math.random;
+    const N = size * size;
+    const nv = Math.round(N * (0.31 + rnd() * 0.09));       // 31-40% vowels
+    const cap = size === 4 ? 2 : size === 5 ? 3 : 4;         // copies of any one letter
+    let rareLeft = size === 4 ? 1 : 2;
+    const counts = {}, out = [];
+    for (let i = 0; i < N; i++) {
+      const k = draw(i < nv ? VOWELS : CONSONANTS, counts, i < nv ? cap + 1 : cap, rareLeft, rnd);
+      counts[k] = (counts[k] || 0) + 1;
+      if (RARE.includes(k)) rareLeft--;
+      out.push(k);
+    }
+    for (let i = N - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; const t = out[i]; out[i] = out[j]; out[j] = t; }
+    return out;
+  }
+
+  /* What a board must offer before we deal it: enough words, and enough long ones to chase. */
+  const TARGET = { 4: { words: 70, long: 6 }, 5: { words: 170, long: 22 }, 6: { words: 320, long: 55 } };
+  function rate(sol) { let long = 0; for (const w of sol.keys()) if (w.length >= 6) long++; return { words: sol.size, long }; }
+  function makeBoard(size, minLen, budgetMs) {
+    const t0 = Date.now(), want = TARGET[size];
+    let best = null;
+    for (let k = 0; k < 24; k++) {
+      const board = rollBoard(size), sol = solve(board, size, minLen), q = rate(sol);
+      const fit = Math.min(1, q.words / want.words) + Math.min(1, q.long / want.long);
+      if (!best || fit > best.fit) best = { board, sol, fit };
+      if (fit >= 2 || Date.now() - t0 > (budgetMs || 260)) break;
+    }
+    return best;
+  }
+
+  return { loadDict, isWord, points, neighbors, adjacent, tileText, wordOf, solve, findPath, rollBoard, makeBoard, rate, TARGET, size: () => W.length };
+})();
+
+/* ================= basics ================= */
+const $ = (s, r) => (r || document).querySelector(s);
+const HOSTED = !!(window.claude && typeof window.claude.use === 'function');   // running as a claude.ai artifact
+const ARTIFACT_URL = 'https://claude.ai/artifact/5gDSxLizAng1a2JVrVhgeX';   // where this page is published; invite links point here
+const QS = new URLSearchParams(HOSTED ? '' : location.search);                  // dev switches, self-hosted only
+const SIZES = [4, 5, 6], TIMES = [30, 60, 90, 120, 180], MIN_LEN = 3;
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+const ABC = 'abcdefghjkmnpqrstuvwxyz23456789';
+const DEV_SECS = +QS.get('secs') || 0;
+
+const area = get => ({
+  get(k, d) { try { const v = get().getItem('ww.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { if (v == null) get().removeItem('ww.' + k); else get().setItem('ww.' + k, JSON.stringify(v)); } catch (e) {} }
+});
+const store = area(() => localStorage), sess = area(() => sessionStorage);
+
+function rid(n) {
+  const a = new Uint8Array(n);
+  try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < n; i++) a[i] = Math.random() * 256; }
+  let s = '';
+  for (const x of a) s += ABC[x % ABC.length];
+  return s;
+}
+const cleanName = s => String(s == null ? '' : s).replace(/[^\p{L}\p{N} _.'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+const pick = a => a[(Math.random() * a.length) | 0];
+const randomName = () => pick(['Brisk', 'Sly', 'Keen', 'Nimble', 'Witty', 'Bold', 'Lucky', 'Swift']) + ' ' + pick(['Otter', 'Finch', 'Lynx', 'Heron', 'Fox', 'Wren', 'Hare', 'Moth']);
+const shortTime = s => (s === 0 ? '∞' : s < 120 || s % 60 ? s + 's' : s / 60 + 'm');
+const longTime = s => (s === 0 ? 'No limit' : s < 120 || s % 60 ? s + ' seconds' : s / 60 + ' minutes');
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const byLen = (a, b) => b.length - a.length || (a < b ? -1 : 1);
+const validSecs = s => Number.isInteger(s) && s >= 5 && s <= 600;
+
+const S = {
+  size: SIZES.includes(store.get('size')) ? store.get('size') : 4,
+  secs: [0].concat(TIMES).includes(store.get('secs')) ? store.get('secs') : 90,
+  sound: store.get('sound', true) !== false,
+  name: cleanName(store.get('name', '')) || randomName()
+};
+
+/* ================= sound + haptics ================= */
+const Snd = (() => {
+  let ctx = null;
+  const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31];
+  function ac() {
+    if (!S.sound) return null;
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    } catch (e) { return null; }
+  }
+  function tone(freq, dur, type, vol, delay) {
+    const c = ac();
+    if (!c) return;
+    try {
+      const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'triangle';
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) {}
+  }
+  return {
+    unlock: ac,
+    tick(n) { tone(294 * Math.pow(2, SCALE[Math.min(n, SCALE.length) - 1] / 12), .07, 'triangle', .04); },
+    good(len) { tone(659, .1, 'triangle', .07); tone(988, .16, 'triangle', .07, .07); if (len >= 6) tone(1319, .24, 'triangle', .06, .15); },
+    dup() { tone(392, .12, 'sine', .05); },
+    bad() { tone(165, .14, 'sine', .08); },
+    beep(go) { tone(go ? 880 : 523, go ? .3 : .11, 'square', .028); },
+    end() { tone(523, .2, 'triangle', .07); tone(392, .34, 'triangle', .07, .17); }
+  };
+})();
+const buzz = p => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} };
+let wl = null;
+async function wake(on) {
+  try {
+    if (on && !wl && navigator.wakeLock) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); }
+    else if (!on && wl) { const w = wl; wl = null; await w.release(); }
+  } catch (e) { wl = null; }
+}
+
+/* ================= shell: screens, toast, sheet ================= */
+const SCREENS = ['home', 'lobby', 'game', 'results'];
+function show(name) {
+  for (const s of SCREENS) $('#' + s).hidden = s !== name;
+  document.body.dataset.screen = name;
+  if (name !== 'game') { const sc = $('#' + name); if (sc) sc.scrollTop = 0; }
+}
+let toastT = 0;
+function toast(msg, ms) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('on'), ms || 2600);
+}
+let sheetDone = null;
+function openSheet(o) {
+  if (sheetDone) sheetDone(null);
+  return new Promise(resolve => {
+    const wrap = $('#sheet'), box = $('#sheetBox');
+    box.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = o.title; box.appendChild(h);
+    if (o.body) { const p = document.createElement('p'); p.textContent = o.body; box.appendChild(p); }
+    let inp = null;
+    if (o.input) { inp = document.createElement('input'); inp.id = 'sheetInput'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; Object.assign(inp, o.input); box.appendChild(inp); }
+    const row = document.createElement('div'); row.className = 'sheet-actions';
+    const done = v => { if (sheetDone !== done) return; sheetDone = null; wrap.hidden = true; document.removeEventListener('keydown', onKey, true); resolve(v); };
+    sheetDone = done;
+    for (const a of o.actions) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn' + (a.primary ? ' primary' : '') + (a.danger ? ' danger' : ''); b.textContent = a.label;
+      b.addEventListener('click', () => done(a.key === 'input' ? inp.value : a.key));
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+    const onKey = e => {
+      if (e.key === 'Escape') { e.preventDefault(); done(null); }
+      else if (e.key === 'Enter' && inp && document.activeElement === inp) { e.preventDefault(); done(inp.value); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    wrap.onclick = e => { if (e.target === wrap) done(null); };
+    wrap.hidden = false;
+    (inp || row.firstElementChild).focus();
+  });
+}
+
+/* ================= grid + time controls (used on home and in the lobby) ================= */
+function mountSettings(root, id, unlimited, onChange) {
+  const stops = unlimited ? TIMES.concat([0]) : TIMES;
+  root.innerHTML =
+    '<div class="field"><div class="field-head"><span class="label">Grid</span><span class="val" data-v="size"></span></div>' +
+    '<div class="seg" role="radiogroup" aria-label="Grid size">' +
+    SIZES.map(n => `<button type="button" role="radio" data-size="${n}"><i class="g" style="--n:${n}"></i>${n}×${n}</button>`).join('') +
+    '</div></div>' +
+    '<div class="field"><div class="field-head"><span class="label">Time</span><span class="val" data-v="time"></span></div>' +
+    `<input class="slider" id="${id}Time" type="range" min="0" max="${stops.length - 1}" step="1" aria-label="Round length">` +
+    '<div class="stops">' + stops.map((s, i) => `<button type="button" tabindex="-1" data-i="${i}">${shortTime(s)}</button>`).join('') + '</div></div>';
+  const segs = [...root.querySelectorAll('[data-size]')], stopBtns = [...root.querySelectorAll('[data-i]')];
+  const slider = $('input', root), vSize = $('[data-v="size"]', root), vTime = $('[data-v="time"]', root);
+  let size = 4, secs = 90, locked = false;
+  function paint() {
+    segs.forEach(b => { const on = +b.dataset.size === size; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+    const i = Math.max(0, stops.indexOf(secs));
+    slider.value = String(i);
+    slider.style.setProperty('--p', (i / (stops.length - 1)) * 100 + '%');
+    slider.setAttribute('aria-valuetext', longTime(secs));
+    stopBtns.forEach((b, k) => b.classList.toggle('on', k === i));
+    vSize.textContent = size + ' × ' + size;
+    vTime.textContent = stops.includes(secs) ? longTime(secs) : secs + ' seconds';
+  }
+  function set(sz, sc, silent) {
+    size = SIZES.includes(sz) ? sz : 4;
+    secs = stops.includes(sc) || (locked && validSecs(sc)) ? sc : 90;
+    paint();
+    if (!silent && onChange) onChange(size, secs);
+  }
+  segs.forEach(b => b.addEventListener('click', () => { if (!locked) set(+b.dataset.size, secs); }));
+  slider.addEventListener('input', () => { if (!locked) set(size, stops[+slider.value]); });
+  stopBtns.forEach((b, k) => b.addEventListener('click', () => { if (!locked) set(size, stops[k]); }));
+  return {
+    set, get: () => ({ size, secs }),
+    lock(v) { locked = v; root.classList.toggle('locked', v); slider.disabled = v; segs.forEach(b => { b.disabled = v; }); stopBtns.forEach(b => { b.disabled = v; }); }
+  };
+}
+
+/* ================= word list ================= */
+const dictReady = new Promise((resolve, reject) => {
+  const done = () => { try { resolve(Core.loadDict(window.WORDWEFT_DICT)); window.WORDWEFT_DICT = null; } catch (e) { reject(e); } };
+  if (window.WORDWEFT_DICT) return done();
+  const s = document.createElement('script');
+  s.src = 'words.js';
+  s.onload = () => (window.WORDWEFT_DICT ? done() : reject(new Error('empty word list')));
+  s.onerror = () => reject(new Error('word list failed to load'));
+  document.head.appendChild(s);
+});
+dictReady.catch(() => {});
+async function needDict() {
+  try { await dictReady; return true; }
+  catch (e) { toast('The word list did not load. Check your connection and reload the page.', 5000); return false; }
+}
+
+/* ================= the round ================= */
+const el = {
+  board: $('#board'), tiles: $('#tiles'), thread: $('#thread'), line: $('#threadLine'), stage: $('#stage'),
+  wordbar: $('#wordbar'), word: $('#word'), wtag: $('#wtag'), hint: $('#hint'),
+  hud: $('#hud'), time: $('#time'), bar: $('#bar'), fill: $('#barFill'), pts: $('#pts'), score: $('#score'),
+  chips: $('#chips'), fcount: $('#fcount'), fbest: $('#fbest'), rivals: $('#rivals')
+};
+const G = { mode: 'solo', size: 4, secs: 90, board: [], all: new Map(), found: [], foundSet: new Set(), score: 0, live: false, startAt: 0, endAt: 0, gen: 0, tickT: 0, raf: 0, lastSec: -1 };
+let tiles = [], inPath = new Uint8Array(0), path = [], typed = '', quJustTyped = false;
+let geo = { side: 0, tile: 0, pitch: 1, hitR: 0, n: 4, left: 0, top: 0 };
+let drag = { id: null };
+let wordT = 0;
+
+function setupRound(o) {
+  G.gen++;
+  stopClock();
+  Res.stop();
+  Object.assign(G, { mode: o.mode, size: o.size, secs: o.secs, board: o.board, all: o.sol, found: [], foundSet: new Set(), score: 0, live: false, lastSec: -1 });
+  path = []; typed = ''; drag = { id: null };
+  el.tiles.innerHTML = '';
+  el.tiles.style.setProperty('--n', o.size);
+  tiles = o.board.map(ch => {
+    const d = document.createElement('div');
+    d.className = 'tile' + (ch === 'q' ? ' qu' : '');
+    const s = document.createElement('span');
+    s.textContent = ch === 'q' ? 'Qu' : ch.toUpperCase();
+    d.appendChild(s); el.tiles.appendChild(d);
+    return d;
+  });
+  inPath = new Uint8Array(o.size * o.size);
+  el.board.classList.add('veil');
+  el.board.dataset.st = '';
+  el.line.setAttribute('points', '');
+  el.chips.innerHTML = '';
+  el.score.textContent = '0';
+  el.hud.classList.remove('hurry');
+  el.bar.hidden = !o.secs;
+  el.fill.style.transform = 'scaleX(1)';
+  el.time.textContent = o.secs ? clockText(o.secs * 1000) : '0:00';
+  el.rivals.hidden = o.mode !== 'duel';
+  const best = o.mode === 'solo' ? store.get('best.' + o.size + '.' + o.secs, 0) : 0;
+  el.fbest.textContent = best ? 'Best ' + best : '';
+  setWord('', '', '');
+  setCount();
+  show('game');
+  layout();
+  if (o.found) for (const w of o.found) if (o.sol.has(w) && !G.foundSet.has(w)) addWord(w, true);
+}
+
+function layout() {
+  if ($('#game').hidden) return;
+  const r = el.stage.getBoundingClientRect(), n = G.size;
+  const side = Math.max(140, Math.floor(Math.min(r.width, r.height - 6, 620)));
+  const gap = Math.max(4, Math.round(side * (n === 4 ? .032 : n === 5 ? .026 : .02)));
+  const t = (side - gap * (n - 1)) / n;
+  el.board.style.width = el.board.style.height = side + 'px';
+  el.board.style.setProperty('--t', t + 'px');
+  el.board.style.setProperty('--gap', gap + 'px');
+  el.thread.setAttribute('viewBox', '0 0 ' + side + ' ' + side);
+  geo = { side, tile: t, pitch: t + gap, hitR: (t + gap) * .43, n, left: 0, top: 0 };
+  drawThread();
+}
+const cx = i => (i % geo.n) * geo.pitch + geo.tile / 2;
+const cy = i => ((i / geo.n) | 0) * geo.pitch + geo.tile / 2;
+function tileAt(x, y, strict) {
+  const c = Math.floor(x / geo.pitch), r = Math.floor(y / geo.pitch);
+  if (c < 0 || r < 0 || c >= geo.n || r >= geo.n) return -1;
+  const i = r * geo.n + c;
+  if (!strict) return i;
+  const dx = x - cx(i), dy = y - cy(i);
+  return dx * dx + dy * dy <= geo.hitR * geo.hitR ? i : -1;
+}
+function drawThread() {
+  let pts = '';
+  for (let k = 0; k < path.length; k++) pts += (k ? ' ' : '') + cx(path[k]).toFixed(1) + ',' + cy(path[k]).toFixed(1);
+  el.line.setAttribute('points', pts);
+}
+
+function setWord(w, st, tag) {
+  clearTimeout(wordT);
+  el.wordbar.classList.remove('shake', 'pop');
+  el.word.textContent = w.toUpperCase();
+  el.wordbar.dataset.st = st;
+  el.wtag.textContent = tag;
+  el.hint.hidden = !!w;
+  if (w.length > 8) {
+    const room = el.wordbar.clientWidth - (tag ? 76 : 8);
+    el.word.style.fontSize = Math.max(14, Math.min(36, Math.floor(room / (w.length * .74)))) + 'px';
+  } else el.word.style.fontSize = '';
+}
+function verdict(w, st, tag, anim) {
+  setWord(w, st, tag);
+  void el.wordbar.offsetWidth;
+  el.wordbar.classList.add(anim);
+  wordT = setTimeout(() => { if (!path.length) setWord('', '', ''); }, 950);
+}
+function setCount() { el.fcount.textContent = plural(G.found.length, 'word'); }
+
+function afterPath(grew) {
+  const w = Core.wordOf(G.board, path);
+  let st = '';
+  if (w.length >= MIN_LEN) st = G.foundSet.has(w) ? 'dup' : Core.isWord(w) ? 'good' : '';
+  el.board.dataset.st = st;
+  drawThread();
+  setWord(w, st, st === 'good' ? '+' + Core.points(w.length) : st === 'dup' ? 'found' : '');
+  if (grew) { Snd.tick(path.length); buzz(5); }
+}
+function setPath(p) {
+  for (const i of path) { inPath[i] = 0; tiles[i].classList.remove('sel'); }
+  path = p;
+  for (const i of p) { inPath[i] = 1; tiles[i].classList.add('sel'); }
+  afterPath(p.length > 0);
+}
+function pushTile(i) { path.push(i); inPath[i] = 1; tiles[i].classList.add('sel'); afterPath(true); }
+function popTile() { const i = path.pop(); inPath[i] = 0; tiles[i].classList.remove('sel'); afterPath(false); }
+function clearPath(keepWord) {
+  for (const i of path) { inPath[i] = 0; if (tiles[i]) tiles[i].classList.remove('sel'); }
+  path = []; typed = ''; quJustTyped = false;
+  el.board.dataset.st = '';
+  el.line.setAttribute('points', '');
+  if (!keepWord) setWord('', '', '');
+}
+function flash(p, kind) {
+  const els = p.map(i => tiles[i]);
+  for (const t of els) { t.classList.remove('fl-good', 'fl-dup', 'fl-bad'); void t.offsetWidth; t.classList.add('fl-' + kind); }
+  setTimeout(() => { for (const t of els) t.classList.remove('fl-' + kind); }, 440);
+}
+function chipEl(w, extra) {
+  const c = document.createElement('span');
+  c.className = 'chip'; c.dataset.w = w;
+  c.append(w);
+  const s = document.createElement('small'); s.textContent = extra == null ? Core.points(w.length) : extra;
+  c.appendChild(s);
+  return c;
+}
+function addWord(w, quiet) {
+  G.found.push(w); G.foundSet.add(w);
+  G.score += Core.points(w.length);
+  el.score.textContent = G.score;
+  const c = chipEl(w);
+  el.chips.prepend(c);
+  setCount();
+  if (quiet) return;
+  c.classList.add('new');
+  el.pts.classList.remove('bump'); void el.pts.offsetWidth; el.pts.classList.add('bump');
+  el.chips.scrollTop = 0;
+  if (G.mode === 'duel') Duel.progress();
+}
+function submit() {
+  const w = Core.wordOf(G.board, path), p = path.slice();
+  clearPath(true);
+  if (w.length < MIN_LEN) { setWord('', '', ''); return; }
+  if (G.foundSet.has(w)) {
+    flash(p, 'dup'); verdict(w, 'dup', 'found', 'shake'); Snd.dup(); buzz(20);
+    const c = el.chips.querySelector('[data-w="' + w + '"]');
+    if (c) { c.classList.remove('pulse', 'new'); void c.offsetWidth; c.classList.add('pulse'); c.scrollIntoView({ block: 'nearest' }); }
+  } else if (Core.isWord(w)) {
+    flash(p, 'good'); verdict(w, 'good', '+' + Core.points(w.length), 'pop'); Snd.good(w.length); buzz(14);
+    addWord(w);
+  } else {
+    flash(p, 'bad'); verdict(w, 'bad', 'not a word', 'shake'); Snd.bad(); buzz([8, 50, 8]);
+  }
+}
+
+/* ----- pointer: swipe a path, or tap letters one at a time and tap the last one again to play it ----- */
+function local(e) { return [e.clientX - geo.left, e.clientY - geo.top]; }
+el.board.addEventListener('pointerdown', e => {
+  if (!G.live || drag.id != null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  e.preventDefault();
+  Snd.unlock();
+  const r = el.board.getBoundingClientRect();
+  geo.left = r.left; geo.top = r.top;
+  const [x, y] = local(e), t = tileAt(x, y, false);
+  if (t < 0) return;
+  try { el.board.setPointerCapture(e.pointerId); } catch (err) {}
+  drag = { id: e.pointerId, moved: false, cont: false, play: false, start: t, lx: x, ly: y };
+  const last = path.length && !typed ? path[path.length - 1] : -1;
+  typed = '';
+  if (last < 0) setPath([t]);
+  else if (t === last) { drag.cont = true; drag.play = true; }
+  else if (inPath[t]) { while (path[path.length - 1] !== t) { const i = path.pop(); inPath[i] = 0; tiles[i].classList.remove('sel'); } afterPath(false); }
+  else if (Core.adjacent(G.size, last, t)) pushTile(t);
+  else setPath([t]);
+});
+function hit(x, y) {
+  const t = tileAt(x, y, true);
+  if (t < 0 || t === path[path.length - 1]) return;
+  if (!drag.moved && !drag.cont && !(path.length === 1 && path[0] === drag.start)) setPath([drag.start]);   // a swipe is its own word
+  const L = path.length, last = path[L - 1];
+  if (t === last) return;
+  if (L >= 2 && t === path[L - 2]) { drag.moved = true; popTile(); }
+  else if (!inPath[t] && Core.adjacent(G.size, last, t)) { drag.moved = true; pushTile(t); }
+}
+function track(x, y) {
+  const dx = x - drag.lx, dy = y - drag.ly, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (geo.pitch / 5)));
+  for (let k = 1; k <= n; k++) hit(drag.lx + (dx * k) / n, drag.ly + (dy * k) / n);
+  drag.lx = x; drag.ly = y;
+}
+el.board.addEventListener('pointermove', e => {
+  if (drag.id !== e.pointerId || !G.live) return;
+  const list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+  if (list && list.length) for (const c of list) track(c.clientX - geo.left, c.clientY - geo.top);
+  else track(e.clientX - geo.left, e.clientY - geo.top);
+});
+function release(e) {
+  if (drag.id !== e.pointerId) return;
+  const d = drag;
+  drag = { id: null };
+  if (!G.live) return;
+  if (e.type === 'pointercancel') { clearPath(); return; }
+  if (d.moved || d.play) submit();
+}
+el.board.addEventListener('pointerup', release);
+el.board.addEventListener('pointercancel', release);
+el.board.addEventListener('contextmenu', e => e.preventDefault());
+el.board.addEventListener('dragstart', e => e.preventDefault());
+
+/* ----- keyboard: type a word, Enter to play it ----- */
+function typeTo(next) {
+  const p = next ? Core.findPath(G.board, G.size, next) : [];
+  if (!p) { el.wordbar.classList.remove('shake'); void el.wordbar.offsetWidth; el.wordbar.classList.add('shake'); return false; }
+  setPath(p);
+  typed = next;
+  return true;
+}
+document.addEventListener('keydown', e => {
+  if (!G.live || sheetDone || e.metaKey || e.ctrlKey || e.altKey || drag.id != null) return;
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const k = e.key;
+  if (/^[a-zA-Z]$/.test(k)) {
+    e.preventDefault();
+    const ch = k.toLowerCase(), base = typed;
+    if (ch === 'u' && quJustTyped) { quJustTyped = false; return; }   // typing Q already placed "Qu"
+    if (!base && path.length) clearPath();
+    quJustTyped = typeTo(base + (ch === 'q' ? 'qu' : ch)) && ch === 'q';
+  } else if (k === 'Backspace') {
+    e.preventDefault();
+    quJustTyped = false;
+    if (typed) typeTo(typed.slice(0, typed.endsWith('qu') ? -2 : -1)); else clearPath();
+  } else if (k === 'Enter' || k === ' ') {
+    if (path.length) { e.preventDefault(); submit(); }
+  } else if (k === 'Escape') clearPath();
+});
+
+/* ----- clock ----- */
+function clockText(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0'); }
+function stopClock() { clearInterval(G.tickT); cancelAnimationFrame(G.raf); G.tickT = 0; }
+function goLive(startAt) {
+  G.startAt = startAt;
+  G.endAt = G.secs ? startAt + G.secs * 1000 : 0;
+  G.live = true;
+  el.board.classList.remove('veil');
+  wake(true);
+  tick();
+  G.tickT = setInterval(tick, 200);
+  const frame = () => {
+    if (!G.live) return;
+    if (G.endAt) el.fill.style.transform = 'scaleX(' + Math.max(0, (G.endAt - Date.now()) / (G.secs * 1000)).toFixed(4) + ')';
+    G.raf = requestAnimationFrame(frame);
+  };
+  frame();
+}
+function tick() {
+  if (!G.live) return;
+  const now = Date.now();
+  if (!G.endAt) { el.time.textContent = clockText(Math.floor((now - G.startAt) / 1000) * 1000); return; }
+  const rem = G.endAt - now;
+  if (rem <= 0) { finish(); return; }
+  const s = Math.ceil(rem / 1000);
+  if (s !== G.lastSec) {
+    G.lastSec = s;
+    el.time.textContent = clockText(rem);
+    el.hud.classList.toggle('hurry', s <= 10);
+    if (s <= 5) Snd.beep(false);
+  }
+}
+function finish(early) {
+  if (!G.live) return;
+  G.live = false;
+  stopClock();
+  if (drag.id != null) { try { el.board.releasePointerCapture(drag.id); } catch (e) {} drag = { id: null }; }
+  clearPath();
+  if (sheetDone) sheetDone(null);
+  if (G.endAt) { el.fill.style.transform = 'scaleX(0)'; if (!early) el.time.textContent = '0:00'; }
+  el.hud.classList.remove('hurry');
+  Snd.end(); buzz(70);
+  const gen = G.gen;
+  if (G.mode === 'duel') Duel.roundOver();
+  banner(early ? 'Done' : 'Time', 1100).then(() => {
+    if (gen !== G.gen) return;
+    if (G.mode === 'duel') Duel.showResults(); else Res.solo();
+  });
+}
+
+/* ----- countdown + banners ----- */
+let countT = 0;
+function hideCount() { clearTimeout(countT); $('#count').hidden = true; $('#count').classList.remove('go'); }
+function countPaint(text, isText) {
+  const n = $('#countNum');
+  n.textContent = text;
+  n.classList.toggle('txt', !!isText);
+  n.classList.remove('tick'); void n.offsetWidth; n.classList.add('tick');
+}
+function countdown(until, label) {
+  return new Promise(resolve => {
+    clearTimeout(countT);
+    if (until - Date.now() <= 80) { hideCount(); resolve(); return; }
+    $('#countLabel').textContent = label || '';
+    $('#count').classList.remove('go');
+    $('#count').hidden = false;
+    let last = null;
+    const step = () => {
+      const rem = until - Date.now();
+      if (rem <= 0) {
+        Snd.beep(true);
+        countPaint('Go', true);
+        $('#count').classList.add('go');
+        countT = setTimeout(hideCount, 500);
+        resolve();
+        return;
+      }
+      const n = Math.ceil(rem / 1000), shown = n > 3 ? 'Ready' : String(n);
+      if (shown !== last) { last = shown; countPaint(shown, n > 3); if (n <= 3) Snd.beep(false); }
+      countT = setTimeout(step, Math.min(rem, 40));
+    };
+    step();
+  });
+}
+function banner(text, ms) {
+  return new Promise(resolve => {
+    clearTimeout(countT);
+    $('#countLabel').textContent = '';
+    $('#count').classList.remove('go');
+    $('#count').hidden = false;
+    countPaint(text, true);
+    countT = setTimeout(() => { hideCount(); resolve(); }, ms);
+  });
+}
+
+/* ================= solo ================= */
+async function startSolo() {
+  if (!(await needDict())) return;
+  const { size, secs } = homeSet.get();
+  const made = Core.makeBoard(size, MIN_LEN);
+  const dur = DEV_SECS && secs ? DEV_SECS : secs;
+  setupRound({ mode: 'solo', size, secs: dur, board: made.board, sol: made.sol });
+  const gen = G.gen;
+  if (dur) await countdown(Date.now() + 3000, 'Solo · ' + size + '×' + size + ' · ' + shortTime(dur));
+  if (gen !== G.gen) return;
+  goLive(Date.now());
+}
+function goHome() {
+  G.gen++; G.live = false;
+  stopClock(); hideCount(); Res.stop(); wake(false);
+  show('home');
+}
+$('#quit').addEventListener('click', async () => {
+  if (!G.live) return;
+  if (G.mode === 'duel') {
+    const a = await openSheet({ title: 'Leave this duel?', body: 'The round carries on without you and your words will not be counted.', actions: [{ key: 'go', label: 'Leave duel', danger: true }, { key: null, label: 'Keep playing' }] });
+    if (a === 'go') Duel.leave();
+  } else if (!G.secs) finish(true);
+  else {
+    const a = await openSheet({ title: 'End the round now?', body: 'Your words so far will be scored.', actions: [{ key: 'go', label: 'End round', primary: true }, { key: null, label: 'Keep playing' }] });
+    if (a === 'go') finish(true);
+  }
+});
+
+/* ================= results ================= */
+const Res = (() => {
+  let revT = 0, skip = null;
+  function stop() { clearTimeout(revT); skip = null; }
+  function actions(list) {
+    const box = $('#resActions');
+    box.innerHTML = '';
+    for (const a of list) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn' + (a.primary ? ' primary' : ''); b.textContent = a.label;
+      if (a.id) b.id = a.id;
+      b.disabled = !!a.disabled;
+      b.addEventListener('click', a.fn);
+      box.appendChild(b);
+    }
+  }
+  function missed(have, label) {
+    const out = [];
+    for (const w of G.all.keys()) if (!have.has(w)) out.push(w);
+    out.sort(byLen);
+    const box = $('#missed'), list = $('#missedList'), more = $('#missedMore'), CAP = 180;
+    list.innerHTML = '';
+    box.hidden = !out.length; box.open = false;
+    $('#missedSum').textContent = label + ': ' + plural(out.length, 'word');
+    for (const w of out.slice(0, CAP)) list.appendChild(chipEl(w));
+    more.hidden = out.length <= CAP;
+    more.textContent = out.length > CAP ? 'Longest ' + CAP + ' shown, ' + (out.length - CAP) + ' shorter ones left out.' : '';
+  }
+  function head(kicker, title) { $('#resKicker').textContent = kicker; $('#resTitle').textContent = title; }
+  function mode(duel) {
+    $('#tally').hidden = !duel; $('#cols').hidden = !duel;
+    $('#stats').hidden = duel; $('#soloList').hidden = duel;
+  }
+
+  function solo() {
+    stop();
+    const key = 'best.' + G.size + '.' + G.secs, prev = store.get(key, 0) || 0;
+    if (G.score > prev) store.set(key, G.score);
+    head('Solo · ' + G.size + '×' + G.size + ' · ' + (G.secs ? shortTime(G.secs) : 'no limit'),
+      G.score > prev && prev > 0 ? 'New best' : G.found.length ? 'Round over' : 'Nothing this time');
+    mode(false);
+    const sorted = G.found.slice().sort(byLen);
+    $('#stScore').textContent = G.score;
+    $('#stWords').textContent = G.found.length + ' of ' + G.all.size;
+    const long = $('#stLong');
+    long.textContent = sorted[0] || '-';
+    long.style.fontSize = '';
+    $('#stBest').textContent = Math.max(prev, G.score);
+    const list = $('#soloList');
+    list.innerHTML = '';
+    if (sorted.length) for (const w of sorted) list.appendChild(chipEl(w));
+    else { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'No words this round. Short ones count too: look for three letters in a row.'; list.appendChild(p); }
+    missed(G.foundSet, 'Left on the board');
+    $('#resStatus').textContent = '';
+    actions([{ label: 'Play again', primary: true, fn: startSolo }, { label: 'Home', fn: goHome }]);
+    show('results');
+    for (let fs = 23; fs >= 11 && long.scrollWidth > long.clientWidth; fs--) long.style.fontSize = fs + 'px';
+    wake(false);
+  }
+
+  /* o: { opp, mine, theirs, pending, animate, note, actions } */
+  function duel(o) {
+    stop();
+    head('Duel · ' + G.size + '×' + G.size + ' · ' + shortTime(G.secs), o.pending ? 'Tallying' : '');
+    mode(true);
+    $('#tThemName').textContent = o.opp;
+    $('#cThemName').textContent = 'Only ' + o.opp;
+    const uY = $('#cYou'), uB = $('#cBoth'), uT = $('#cThem'), tY = $('#tYou'), tT = $('#tThem');
+    uY.innerHTML = uB.innerHTML = uT.innerHTML = '';
+    tY.textContent = tT.textContent = '0';
+    $('#tYouBox').classList.remove('win'); $('#tThemBox').classList.remove('win');
+    $('#missed').hidden = true;
+    $('#resStatus').textContent = o.pending ? 'Collecting both word lists.' : '';
+    actions(o.pending ? [] : o.actions);
+    show('results');
+    if (o.pending) return;
+
+    const mine = new Set(o.mine), theirs = new Set(o.theirs);
+    const all = [...new Set([...mine, ...theirs])].sort((a, b) => a.length - b.length || (a < b ? -1 : 1));
+    let sy = 0, st = 0;
+    const steps = all.map(w => () => {
+      const base = Core.points(w.length), me = mine.has(w), them = theirs.has(w), both = me && them;
+      const li = document.createElement('li'), sp = document.createElement('span'), sm = document.createElement('small');
+      sp.textContent = w; sm.textContent = '+' + (both ? base : base * 2);
+      li.append(sp, sm);
+      (both ? uB : me ? uY : uT).appendChild(li);
+      if (me) sy += both ? base : base * 2;
+      if (them) st += both ? base : base * 2;
+      tY.textContent = sy; tT.textContent = st;
+    });
+    const done = () => {
+      skip = null;
+      for (const u of [uY, uB, uT]) if (!u.children.length) { const li = document.createElement('li'); li.className = 'none'; li.textContent = 'None'; li.style.background = 'none'; u.appendChild(li); }
+      $('#resTitle').textContent = sy > st ? 'You win' : st > sy ? o.opp + ' wins' : 'Dead heat';
+      $('#tYouBox').classList.toggle('win', sy > st);
+      $('#tThemBox').classList.toggle('win', st > sy);
+      missed(new Set(all), 'Neither of you found');
+      if (o.note) $('#resStatus').textContent = o.note;
+      if (o.onDone) o.onDone();
+    };
+    const calm = !o.animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (calm) { steps.forEach(f => f()); done(); return; }
+    $('#resTitle').textContent = 'The tally';
+    let i = 0;
+    const gap = Math.max(26, Math.min(95, 3800 / Math.max(1, steps.length)));
+    const next = () => { if (i >= steps.length) { done(); return; } steps[i++](); revT = setTimeout(next, gap); };
+    skip = () => { clearTimeout(revT); while (i < steps.length) steps[i++](); done(); };
+    revT = setTimeout(next, 350);
+  }
+  $('#cols').addEventListener('click', () => { if (skip) skip(); });
+  return { solo, duel, stop, actions };
+})();
+
+/* ================= transports: how two players' states reach each other =================
+   Each one offers join(code) -> channel { set(state), onPeers(fn), leave() }.
+   A player publishes one small state object; everyone in the room sees everyone's latest. */
+function roomTransport(room) {                       // claude.ai artifact: the page's live room
+  return {
+    kind: 'room',
+    async join(code) {
+      const nr = await room.join('ww-' + code);
+      return {
+        set(state) { nr.presence(state).catch(() => {}); },
+        onPeers(fn) {
+          return nr.onPeers(
+            ch => fn(ch.peers.map(p => ({ me: p.isMe && p.sameTab, state: p.presence || {} }))),
+            () => fn(null));
+        },
+        leave() { nr.leave().catch(() => {}); }
+      };
+    },
+    advertise(info) { room.presence({ open: info || null }).catch(() => {}); },
+    onAdverts(fn) {
+      return room.onPeers(ch => fn(ch.peers.filter(p => !(p.isMe && p.sameTab) && p.presence && p.presence.open).map(p => p.presence.open)), () => fn([]));
+    }
+  };
+}
+function localTransport() {                          // tabs of one browser (dev and testing)
+  const me = rid(10);
+  function hub(name, onChange) {
+    const bc = new BroadcastChannel(name), peers = new Map();
+    let state = null;
+    const say = m => { try { bc.postMessage(m); } catch (e) {} };
+    bc.onmessage = ev => {
+      const m = ev.data;
+      if (!m || m.id === me) return;
+      if (m.t === 'hello') { if (state) say({ t: 'state', id: me, state }); return; }
+      if (m.t === 'bye' || m.state == null) peers.delete(m.id); else peers.set(m.id, { state: m.state, seen: Date.now() });
+      onChange();
+    };
+    const hb = setInterval(() => {
+      if (state) say({ t: 'state', id: me, state });
+      let dropped = false;
+      for (const [id, p] of peers) if (Date.now() - p.seen > 7000) { peers.delete(id); dropped = true; }
+      if (dropped) onChange();
+    }, 2500);
+    const bye = () => say({ t: 'bye', id: me });
+    addEventListener('pagehide', bye);
+    say({ t: 'hello', id: me });
+    return {
+      peers,
+      set(s) { state = s; say(s == null ? { t: 'bye', id: me } : { t: 'state', id: me, state: s }); },
+      close() { clearInterval(hb); removeEventListener('pagehide', bye); bye(); bc.close(); }
+    };
+  }
+  let lobby = null, advFn = null;
+  const lob = () => lobby || (lobby = hub('ww-lobby', () => advFn && advFn([...lobby.peers.values()].map(p => p.state))));
+  return {
+    kind: 'local',
+    async join(code) {
+      let fn = null, mine = {};
+      const emit = () => fn && fn([{ me: true, state: mine }].concat([...h.peers.values()].map(p => ({ me: false, state: p.state }))));
+      const h = hub('ww-' + code, emit);
+      return {
+        set(s) { mine = s; h.set(s); },
+        onPeers(f) { fn = f; emit(); return () => { fn = null; }; },
+        leave() { fn = null; h.close(); }
+      };
+    },
+    advertise(info) { lob().set(info || null); },
+    onAdverts(fn) { advFn = fn; lob(); return () => { advFn = null; }; }
+  };
+}
+function mqttLink(url, o) {                          // minimal MQTT 3.1.1 over WebSocket (QoS 0, retained state, last-will)
+  let ws = null, up = false, everUp = false, closed = false, buf = new Uint8Array(0), pingT = 0, retry = 0, retryT = 0, first = null;
+  const te = new TextEncoder(), td = new TextDecoder();
+  const str = s => { const b = te.encode(s), u = new Uint8Array(b.length + 2); u[0] = b.length >> 8; u[1] = b.length & 255; u.set(b, 2); return u; };
+  const cat = (...a) => { let n = 0; for (const x of a) n += x.length; const u = new Uint8Array(n); let k = 0; for (const x of a) { u.set(x, k); k += x.length; } return u; };
+  const pkt = (head, body) => { const h = [head]; let n = body.length; do { let d = n & 127; n >>= 7; if (n) d |= 128; h.push(d); } while (n); return cat(Uint8Array.from(h), body); };
+  const send = u => { if (ws && ws.readyState === 1) ws.send(u); };
+  function open() {
+    try { ws = new WebSocket(url, 'mqtt'); } catch (e) { ws = {}; return down(); }
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => send(pkt(0x10, cat(str('MQTT'), Uint8Array.of(4, 0x26, 0, 30), str(o.clientId), str(o.willTopic), str(''))));
+    ws.onmessage = ev => { buf = cat(buf, new Uint8Array(ev.data)); parse(); };
+    ws.onclose = ws.onerror = down;
+  }
+  function down() {
+    if (!ws) return;
+    const w = ws; ws = null;
+    w.onopen = w.onmessage = w.onclose = w.onerror = null;
+    try { w.close(); } catch (e) {}
+    clearInterval(pingT);
+    buf = new Uint8Array(0);
+    const was = up; up = false;
+    if (was && o.onDown) o.onDown();
+    if (closed) return;
+    if (!everUp) { closed = true; if (first) { first(false); first = null; } return; }
+    retryT = setTimeout(open, Math.min(8000, 700 * Math.pow(2, retry++)));
+  }
+  function parse() {
+    for (;;) {
+      if (buf.length < 2) return;
+      let len = 0, mul = 1, i = 1, b;
+      do { if (i >= buf.length) return; b = buf[i++]; len += (b & 127) * mul; mul *= 128; } while ((b & 128) && i < 5);
+      if (buf.length < i + len) return;
+      const head = buf[0], body = buf.slice(i, i + len);
+      buf = buf.slice(i + len);
+      const type = head >> 4;
+      if (type === 2) {
+        if (body[1] !== 0) { down(); return; }
+        up = true; everUp = true; retry = 0;
+        pingT = setInterval(() => send(Uint8Array.of(0xC0, 0)), 20000);
+        if (first) { first(true); first = null; }
+        if (o.onUp) o.onUp();
+      } else if (type === 3) {
+        const tl = (body[0] << 8) | body[1];
+        let off = 2 + tl;
+        if ((head >> 1) & 3) off += 2;
+        if (o.onMsg) o.onMsg(td.decode(body.subarray(2, 2 + tl)), td.decode(body.subarray(off)));
+      }
+    }
+  }
+  const api = {
+    ready: new Promise(r => { first = r; }),
+    isUp: () => up,
+    sub(filter) { send(pkt(0x82, cat(Uint8Array.of(0, 1), str(filter), Uint8Array.of(0)))); },
+    pub(topic, text, retain) { send(pkt(retain ? 0x31 : 0x30, cat(str(topic), te.encode(text)))); },
+    close() { closed = true; clearTimeout(retryT); clearInterval(pingT); if (ws) { try { send(Uint8Array.of(0xE0, 0)); } catch (e) {} down(); } }
+  };
+  open();
+  setTimeout(() => { if (first) { first(false); first = null; api.close(); } }, 7000);
+  return api;
+}
+function relayTransport(brokers) {                   // self-hosted copy: a public MQTT broker relays the states
+  const brokerOf = code => Math.max(0, ABC.indexOf(code[0])) % brokers.length;
+  async function join(code) {
+    const me = rid(10), base = 'wordweft/1/' + code + '/', peers = new Map();
+    let fn = null, mine = null;
+    const emit = () => fn && fn([{ me: true, state: mine || {} }].concat([...peers.values()].map(p => ({ me: false, state: p.state }))));
+    const link = mqttLink(brokers[brokerOf(code)], {
+      clientId: 'ww' + me + rid(4), willTopic: base + me,
+      onUp() { link.sub(base + '+'); if (mine) link.pub(base + me, JSON.stringify(mine), true); },
+      onMsg(topic, text) {
+        const id = topic.slice(base.length);
+        if (!topic.startsWith(base) || id === me) return;
+        if (!text) peers.delete(id);
+        else { try { peers.set(id, { state: JSON.parse(text), seen: Date.now() }); } catch (e) { return; } }
+        emit();
+      }
+    });
+    if (!(await link.ready)) throw new Error('relay unreachable');
+    const hb = setInterval(() => {
+      if (mine && link.isUp()) link.pub(base + me, JSON.stringify(mine), true);
+      let dropped = false;
+      for (const [id, p] of peers) if (Date.now() - p.seen > 40000) { peers.delete(id); dropped = true; }
+      if (dropped) emit();
+    }, 12000);
+    return {
+      set(s) { mine = s; if (link.isUp()) link.pub(base + me, JSON.stringify(s), true); },
+      onPeers(f) { fn = f; emit(); return () => { fn = null; }; },
+      leave() { fn = null; clearInterval(hb); if (link.isUp()) link.pub(base + me, '', true); setTimeout(() => link.close(), 150); }
+    };
+  }
+  return {
+    kind: 'relay', join,
+    async hostJoin() {
+      let err = null;
+      for (let b = 0; b < brokers.length; b++) {
+        let code;
+        do code = rid(5); while (brokerOf(code) !== b);
+        try { return { code, chan: await join(code) }; } catch (e) { err = e; }
+      }
+      throw err;
+    }
+  };
+}
+let transportP = null;
+function transport() {
+  if (!transportP) transportP = (async () => {
+    if (HOSTED) {
+      let room = null;
+      try { room = await window.claude.use('room'); } catch (e) {}
+      return room ? roomTransport(room) : null;
+    }
+    const net = QS.get('net');
+    if (net === 'off') return null;
+    if (net === 'local') return 'BroadcastChannel' in window ? localTransport() : null;
+    return 'WebSocket' in window ? relayTransport(QS.get('broker') ? [QS.get('broker')] : BROKERS) : null;
+  })();
+  return transportP;
+}
+
+/* ================= duel =================
+   The host deals the board and names a start time on its own clock. The guest measures the
+   gap between the two clocks with a few ping/pong round trips, so both countdowns hit zero together.
+   At the end each side publishes its word list and tallies both lists locally. */
+const Duel = (() => {
+  const D = { on: false, t: null, chan: null, off: null, code: '', role: '', me: null, opp: null, oppHere: false, full: false,
+    offset: 0, synced: false, bestRtt: Infinity, pingN: 0, pings: 0, pingT: 0, pongSeen: 0, pushT: 0, round: null, res: null, waitT: 0, adv: '' };
+  const oppName = () => (D.opp && cleanName(D.opp.name)) || 'Friend';
+  const hashFor = code => 'duel-' + code;
+
+  function freshMe(role) {
+    const c = lobbySet.get();
+    return { v: 1, pid: rid(8), role, name: S.name, ph: 'lobby', rd: 0, cfg: role === 'h' ? { size: c.size, secs: c.secs } : null,
+      g: null, bd: null, at: null, sent: null, pong: null, ping: null, ok: false, n: 0, s: 0, w: null };
+  }
+  function persist() {
+    sess.set('duel', D.on ? { code: D.code, role: D.role, me: D.me, offset: D.offset, synced: D.synced, round: D.round, found: G.mode === 'duel' ? G.found : [], t: Date.now() } : null);
+  }
+  function push() {
+    clearTimeout(D.pushT); D.pushT = 0;
+    if (!D.chan) return;
+    D.chan.set(JSON.parse(JSON.stringify(D.me)));
+    persist();
+  }
+  function pushSoon() { if (!D.pushT) D.pushT = setTimeout(push, 700); }
+  function advertise() {
+    if (!D.t || !D.t.advertise) return;
+    const open = D.on && D.role === 'h' && D.me.ph !== 'play' && !D.oppHere;
+    const info = open ? { code: D.code, size: D.me.cfg.size, secs: D.me.cfg.secs, name: S.name } : null;
+    const key = JSON.stringify(info);
+    if (key !== D.adv) { D.adv = key; D.t.advertise(info); }
+  }
+  function unavailable() {
+    openSheet({
+      title: 'Live duels need an invite',
+      body: HOSTED
+        ? 'This view cannot connect to other players. Live duels work when you are signed in to Claude and the owner has added you to this page by email. A public link alone only allows solo play.'
+        : 'This browser cannot open a live connection, so only solo play is available here.',
+      actions: [{ key: null, label: 'OK', primary: true }]
+    });
+  }
+
+  async function create() {
+    if (D.on) return;
+    toast('Opening a room', 9000);
+    const t = await transport();
+    if (!t) { toast('', 1); return unavailable(); }
+    try {
+      let code, chan;
+      if (t.hostJoin) ({ code, chan } = await t.hostJoin());
+      else { code = rid(5); chan = await t.join(code); }
+      begin(t, chan, code, 'h', null);
+      toast('Room ' + code.toUpperCase() + ' is open', 1800);
+    } catch (e) { toast('Could not open a room. Check your connection and try again.', 4000); }
+  }
+  async function join(code, saved) {
+    code = String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (code.length !== 5) { toast('Room codes are 5 letters and digits.'); return; }
+    if (D.on) { if (D.code === code) return; leave(true); }
+    toast(saved ? 'Rejoining room ' + code.toUpperCase() : 'Joining room ' + code.toUpperCase(), 9000);
+    const t = await transport();
+    if (!t) { toast('', 1); sess.set('duel', null); return unavailable(); }
+    try {
+      const chan = await t.join(code);
+      begin(t, chan, code, saved ? saved.role : 'g', saved);
+      toast('', 1);
+    } catch (e) { sess.set('duel', null); toast('Could not reach that room. Check the code and your connection.', 4000); }
+  }
+  function begin(t, chan, code, role, saved) {
+    Object.assign(D, { on: true, t, chan, code, role, opp: null, oppHere: false, full: false, offset: 0, synced: false, bestRtt: Infinity,
+      pingN: 0, pings: 0, pongSeen: 0, round: null, res: null, adv: '' });
+    D.me = saved && saved.me && saved.me.v === 1 ? saved.me : freshMe(role);
+    D.me.name = S.name;
+    if (saved) { D.offset = +saved.offset || 0; D.synced = !!saved.synced; }
+    if (role === 'h' && D.me.cfg) lobbySet.set(D.me.cfg.size, D.me.cfg.secs, true);
+    setHash(hashFor(code));
+    wake(true);
+    const r = saved && saved.round;
+    if (saved && D.me.ph === 'play' && r && Date.now() < r.startLocal + r.secs * 1000 - 300) {
+      D.off = chan.onPeers(onPeers);
+      push();
+      runRound(r, saved.found || []);
+    } else {
+      if (D.me.ph !== 'lobby') { D.me.ph = 'lobby'; D.me.w = null; }
+      showLobby();
+      D.off = chan.onPeers(onPeers);
+      push();
+    }
+  }
+  function leave(quiet) {
+    if (!D.on) return;
+    D.on = false;
+    clearTimeout(D.pushT); clearTimeout(D.pingT); clearTimeout(D.waitT);
+    D.pushT = 0;
+    if (D.t && D.t.advertise && D.adv && D.adv !== 'null') D.t.advertise(null);
+    try { if (D.off) D.off(); } catch (e) {}
+    try { D.chan.leave(); } catch (e) {}
+    D.chan = null; D.off = null; D.res = null; D.round = null;
+    sess.set('duel', null);
+    setHash('');
+    if (!quiet) goHome();
+  }
+
+  /* ----- everyone's latest state arrives here ----- */
+  function onPeers(list) {
+    if (!D.on) return;
+    if (!list) { D.oppHere = false; toast('Lost the connection to the room.', 4000); paint(); return; }
+    const others = [];
+    for (const p of list) {
+      const s = p.state;
+      if (p.me || !s || s.v !== 1 || typeof s.pid !== 'string' || (s.role !== 'h' && s.role !== 'g')) continue;
+      others.push(s);
+    }
+    let dirty = false;
+    if (others.some(s => s.pid === D.me.pid)) { D.me.pid = rid(8); dirty = true; }       // a duplicated tab
+    if (D.role === 'h') {
+      const guests = others.filter(s => s.role === 'g');
+      let g = guests.find(s => s.pid === D.me.g) || null;
+      if (!g && D.me.ph !== 'play') {
+        g = guests[0] || null;
+        const pid = g ? g.pid : null;
+        if ((D.me.g || null) !== pid) { D.me.g = pid; D.me.pong = null; dirty = true; }
+      }
+      D.oppHere = !!g;
+      if (g) {
+        D.opp = g;
+        const pg = g.ping;
+        if (pg && typeof pg.n === 'number' && (!D.me.pong || D.me.pong.n !== pg.n || D.me.pong.t !== pg.t)) { D.me.pong = { n: pg.n, t: pg.t, h: Date.now() }; dirty = true; }
+      }
+    } else {
+      const h = others.find(s => s.role === 'h') || null;
+      D.oppHere = !!h;
+      if (h) {
+        D.opp = h;
+        const mine = h.g === D.me.pid;
+        D.full = h.g != null && !mine;
+        if (mine) {
+          const pg = h.pong, pi = D.me.ping;
+          if (pg && pi && pg.n === pi.n && pg.t === pi.t && D.pongSeen !== pg.n) {
+            D.pongSeen = pg.n;
+            const t3 = Date.now(), rtt = t3 - pi.t;
+            if (rtt >= 0 && rtt < D.bestRtt) { D.bestRtt = rtt; D.offset = pg.h - (pi.t + t3) / 2; }
+            D.synced = true; D.pings++;
+            clearTimeout(D.pingT);
+            if (D.pings < 5) D.pingT = setTimeout(ping, 280);
+            if (!D.me.ok) { D.me.ok = true; dirty = true; }
+          } else if (!D.pingN) ping();
+          if (h.ph === 'play' && h.rd > D.me.rd) dirty = guestBegin(h) || dirty;
+        }
+      }
+    }
+    if (dirty) push();
+    paint();
+    if (D.res) stepResults(false);
+  }
+  function ping() {
+    clearTimeout(D.pingT);
+    if (!D.on || D.role !== 'g' || D.pings >= 5 || D.pingN >= 12) return;
+    D.me.ping = { n: ++D.pingN, t: Date.now() };
+    push();
+    D.pingT = setTimeout(ping, 1600);
+  }
+
+  /* ----- rounds ----- */
+  async function start() {
+    if (!D.on || D.role !== 'h' || !D.oppHere || D.me.ph === 'play') return;
+    if (!(await needDict()) || !D.on) return;
+    const c = lobbySet.get(), secs = DEV_SECS || c.secs;
+    const made = Core.makeBoard(c.size, MIN_LEN), now = Date.now();
+    Object.assign(D.me, { rd: D.me.rd + 1, ph: 'play', cfg: { size: c.size, secs }, bd: made.board.join(''), at: now + 4200, sent: now, n: 0, s: 0, w: null });
+    push();
+    runRound({ rd: D.me.rd, bd: D.me.bd, size: c.size, secs, startLocal: D.me.at }, null);
+  }
+  function guestBegin(h) {
+    const c = h.cfg;
+    if (!c || !SIZES.includes(c.size) || !validSecs(c.secs) || typeof h.at !== 'number') return false;
+    if (typeof h.bd !== 'string' || h.bd.length !== c.size * c.size || /[^a-z]/.test(h.bd)) return false;
+    const off = D.synced ? D.offset : typeof h.sent === 'number' ? h.sent - Date.now() : 0;
+    const startLocal = Math.round(h.at - off), now = Date.now();
+    if (startLocal - now > 20000 || now > startLocal + c.secs * 1000 - 500) return false;   // garbled, or already over
+    Object.assign(D.me, { rd: h.rd, ph: 'play', n: 0, s: 0, w: null });
+    runRound({ rd: h.rd, bd: h.bd, size: c.size, secs: c.secs, startLocal }, null);
+    return true;
+  }
+  async function runRound(r, found) {
+    D.round = r; D.res = null;
+    clearTimeout(D.waitT);
+    persist();
+    if (!(await needDict()) || !D.on || D.round !== r) return;
+    const board = r.bd.split('');
+    setupRound({ mode: 'duel', size: r.size, secs: r.secs, board, sol: Core.solve(board, r.size, MIN_LEN), found });
+    advertise();
+    paint();
+    const gen = G.gen;
+    await countdown(r.startLocal, 'You vs ' + oppName());
+    if (gen !== G.gen || !D.on) return;
+    goLive(r.startLocal);
+  }
+  function progress() { D.me.n = G.found.length; D.me.s = G.score; paint(); pushSoon(); }
+  function packWords(list) {
+    let ws = list.slice();
+    while (ws.join(',').length > 3000) { ws.sort(byLen); ws.pop(); }
+    return ws.join(',');
+  }
+  function roundOver() {
+    if (!D.on) return;
+    Object.assign(D.me, { ph: 'done', n: G.found.length, s: G.score, w: packWords(G.found) });
+    push();
+  }
+  function oppWords() {
+    const o = D.opp;
+    if (!o || o.ph !== 'done' || o.rd !== D.me.rd || typeof o.w !== 'string') return null;
+    return [...new Set(o.w.split(','))].filter(w => G.all.has(w));
+  }
+  function showResults() {
+    if (!D.on) return;
+    D.res = { rd: D.me.rd, state: '' };
+    clearTimeout(D.waitT);
+    D.waitT = setTimeout(() => stepResults(true), 6500);
+    stepResults(false);
+    wake(false);
+  }
+  function resultActions() {
+    return D.role === 'h'
+      ? [{ id: 'rematch', label: 'Rematch', primary: true, disabled: !D.oppHere, fn: start }, { label: 'Settings', fn: toLobby }, { label: 'Leave', fn: () => leave() }]
+      : [{ label: 'Back to room', primary: true, fn: showLobby }, { label: 'Leave', fn: () => leave() }];
+  }
+  function stepResults(timedOut) {
+    const R = D.res;
+    if (!R || R.rd !== D.me.rd || G.mode !== 'duel') return;
+    const theirs = oppWords(), base = { opp: oppName(), mine: G.found, actions: resultActions(), onDone: paint };
+    if (theirs) {
+      if (R.state !== 'final') {
+        const first = R.state !== 'partial';
+        R.state = 'final';
+        clearTimeout(D.waitT);
+        Res.duel(Object.assign(base, { theirs, animate: first }));
+      }
+    } else if (timedOut && R.state !== 'partial') {
+      R.state = 'partial';
+      Res.duel(Object.assign(base, { theirs: [], animate: true, note: oppName() + "'s words did not arrive, so only yours are counted here." }));
+    } else if (R.state === '') {
+      R.state = 'pending';
+      Res.duel(Object.assign(base, { pending: true }));
+    }
+  }
+  function toLobby() {
+    if (!D.on) return;
+    if (D.role === 'h' && D.me.ph !== 'lobby') { D.me.ph = 'lobby'; push(); }
+    showLobby();
+  }
+
+  /* ----- painting whatever screen is up ----- */
+  function showLobby() {
+    G.gen++; G.live = false;
+    stopClock(); hideCount(); Res.stop();
+    D.res = null;
+    const box = $('#codeTiles');
+    box.innerHTML = '';
+    for (const ch of D.code) { const s = document.createElement('span'); s.textContent = ch; box.appendChild(s); }
+    box.setAttribute('aria-label', 'Room code ' + D.code.toUpperCase().split('').join(' '));
+    $('#nameInput').value = S.name;
+    $('#linkBox').hidden = true;
+    show('lobby');
+    paint();
+  }
+  function paint() {
+    if (!D.on) return;
+    advertise();
+    const name = oppName(), host = D.role === 'h';
+    if (!$('#lobby').hidden) {
+      const kind = D.t.kind;
+      $('#lobbyNote').textContent = !host ? 'You are in room ' + D.code.toUpperCase() + '.'
+        : kind === 'room' ? 'Send a friend the link or the code. They need to be signed in to Claude and added to this page by email. A public link alone only allows solo play.'
+        : kind === 'relay' ? 'Send a friend the link. It opens straight into this room. Live play relays through a public MQTT broker, which sees only nicknames and words.'
+        : 'Open the link in another tab of this browser to try a duel against yourself.';
+      $('#copyLink').hidden = !inviteLink();
+      $('#oppSeat').classList.toggle('waiting', !D.oppHere);
+      $('#oppName').textContent = D.oppHere ? name : host ? 'Not here yet' : 'Finding host';
+      lobbySet.lock(!host);
+      if (!host && D.opp && D.opp.cfg) lobbySet.set(D.opp.cfg.size, D.opp.cfg.secs, true);
+      const btn = $('#startDuel');
+      btn.hidden = !host;
+      btn.disabled = !D.oppHere;
+      $('#lobbyStatus').textContent = host
+        ? (D.oppHere ? name + ' is in. The round starts for both of you at the same moment.' : 'The round starts once your friend has joined.')
+        : !D.oppHere ? 'Looking for the host. If this takes a while, check the code.'
+        : D.full ? 'This room already has two players.'
+        : D.opp.ph === 'play' ? 'A round is under way. You are in for the next one.'
+        : 'You are in. ' + name + ' starts the round.';
+    }
+    if (!$('#game').hidden && G.mode === 'duel') {
+      $('#rvYou').textContent = plural(G.found.length, 'word');
+      const live = D.opp && D.opp.rd === D.me.rd ? D.opp.n | 0 : 0;
+      $('#rvThem').textContent = D.oppHere ? plural(live, 'word') : '';
+      $('#rvName').textContent = D.oppHere ? name : name + ' left';
+    }
+    if (!$('#results').hidden && D.res && D.res.state !== 'pending' && D.res.state !== '') {
+      const b = $('#rematch');
+      if (b) b.disabled = !D.oppHere;
+      if (D.res.state === 'final') $('#resStatus').textContent = !D.oppHere ? name + ' left the room.' : host ? '' : 'Waiting for ' + name + ' to start the next round.';
+    }
+  }
+  function inviteLink() {
+    const base = HOSTED ? ARTIFACT_URL : location.origin === 'null' ? location.href.replace(/#.*$/, '') : location.origin + location.pathname + location.search;
+    return base ? base.replace(/#.*$/, '') + '#' + hashFor(D.code) : '';
+  }
+  async function copy(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); toast(okMsg); }
+    catch (e) {
+      const box = $('#linkBox');
+      box.hidden = false; box.value = text; box.focus(); box.select();
+      toast('Select and copy the text above.');
+    }
+  }
+
+  /* ----- lobby controls ----- */
+  $('#copyLink').addEventListener('click', () => copy(inviteLink(), 'Invite link copied'));
+  $('#copyCode').addEventListener('click', () => copy(D.code.toUpperCase(), 'Code copied'));
+  $('#startDuel').addEventListener('click', start);
+  $('#lobbyBack').addEventListener('click', () => leave());
+  $('#nameInput').addEventListener('input', e => {
+    const n = cleanName(e.target.value);
+    if (!n) return;
+    S.name = n; store.set('name', n);
+    if (D.on) { D.me.name = n; D.adv = ''; pushSoon(); }
+  });
+  $('#nameInput').addEventListener('blur', e => { e.target.value = S.name; });
+
+  return {
+    create, join, leave, start, progress, roundOver, showResults,
+    on: () => D.on, code: () => D.code,
+    settings(size, secs) { if (D.on && D.role === 'h' && D.me.ph !== 'play') { D.me.cfg = { size, secs }; D.adv = ''; push(); paint(); } },
+    resume(saved) { return join(saved.code, saved); }
+  };
+})();
+
+/* ================= routing: #duel-xxxxx opens a room ================= */
+function hashCode() { const m = /^#duel-([a-z0-9]{5})$/i.exec(location.hash || ''); return m ? m[1].toLowerCase() : null; }
+function setHash(h) {
+  try {
+    if ((location.hash || '').replace(/^#/, '') === h) return;
+    if (h || HOSTED) location.hash = h;
+    else history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) {}
+}
+addEventListener('hashchange', () => { const c = hashCode(); if (c && Duel.code() !== c) Duel.join(c); else if (c && !Duel.on()) Duel.join(c); });
+
+/* ================= home ================= */
+const homeSet = mountSettings($('#homeSetup'), 'home', true, (size, secs) => { S.size = size; S.secs = secs; store.set('size', size); store.set('secs', secs); });
+const lobbySet = mountSettings($('#lobbySetup'), 'lobby', false, (size, secs) => { Duel.settings(size, secs); S.size = size; store.set('size', size); if (TIMES.includes(secs)) { S.secs = secs; store.set('secs', secs); } });
+homeSet.set(S.size, S.secs, true);
+lobbySet.set(S.size, S.secs || 90, true);
+
+$('#playSolo').addEventListener('click', () => { Snd.unlock(); startSolo(); });
+$('#playDuel').addEventListener('click', () => { Snd.unlock(); const c = homeSet.get(); lobbySet.set(c.size, c.secs || 90, true); Duel.create(); });
+$('#haveCode').addEventListener('click', async () => {
+  const v = await openSheet({ title: 'Join a duel', body: 'Enter the 5-character room code your friend sent.', input: { maxLength: 5, placeholder: '•••••', inputMode: 'text', autocapitalize: 'characters' }, actions: [{ key: 'input', label: 'Join', primary: true }, { key: null, label: 'Cancel' }] });
+  if (v) Duel.join(v);
+});
+const soundBtn = $('#soundBtn');
+function paintSound() { soundBtn.setAttribute('aria-pressed', String(S.sound)); soundBtn.setAttribute('aria-label', S.sound ? 'Sound on' : 'Sound off'); }
+soundBtn.addEventListener('click', () => { S.sound = !S.sound; store.set('sound', S.sound); paintSound(); if (S.sound) Snd.tick(3); });
+paintSound();
+
+function paintOpen(list) {
+  const seen = new Set(), ok = [];
+  for (const a of list || []) {
+    if (!a || typeof a.code !== 'string' || !/^[a-z0-9]{5}$/.test(a.code) || seen.has(a.code) || !SIZES.includes(a.size) || !validSecs(a.secs)) continue;
+    seen.add(a.code); ok.push(a);
+  }
+  const ul = $('#openList');
+  ul.innerHTML = '';
+  for (const a of ok.slice(0, 6)) {
+    const li = document.createElement('li'), sp = document.createElement('span'), b = document.createElement('button');
+    sp.textContent = (cleanName(a.name) || 'Someone') + ' · ' + a.size + '×' + a.size + ' · ' + shortTime(a.secs);
+    b.type = 'button'; b.className = 'btn small primary'; b.textContent = 'Join';
+    b.addEventListener('click', () => Duel.join(a.code));
+    li.append(sp, b); ul.appendChild(li);
+  }
+  $('#openDuels').hidden = !ok.length;
+}
+
+if (window.ResizeObserver) new ResizeObserver(layout).observe(el.stage);
+addEventListener('resize', layout);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (G.live || Duel.on())) wake(true); });
+
+/* ================= boot ================= */
+show('home');
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) el.hint.textContent = 'Swipe across neighbouring letters';
+const saved = sess.get('duel', null), linked = hashCode();
+if (saved && saved.code && saved.me && (!linked || linked === saved.code) && Date.now() - saved.t < 20 * 60000) Duel.resume(saved);
+else if (linked) Duel.join(linked);
+transport().then(t => { if (t && t.onAdverts) t.onAdverts(paintOpen); });
+
+window.__ww = { Core, G, S, Duel };
+})();
+</script>
+</body>
+</html>
