@@ -11,7 +11,7 @@ try {
   page.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_FAILED/.test(m.text())) errors.push(m.text()); });
   await page.goto(t.url + '?secs=14&net=local');
   await page.waitForFunction(() => window.__ww && window.__ww.Core.size() > 100000);
-  check(await page.title() === 'Wordweft', 'title');
+  check(await page.title() === 'Jumbly', 'title');
   if (shots) await page.screenshot({ path: shots + '/home-desktop.png' });
 
   await page.click('[data-size="5"]');

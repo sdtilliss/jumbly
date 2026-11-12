@@ -1,4 +1,4 @@
-/* Wordweft core: dictionary, board generation, solver, scoring. No DOM. */
+/* Jumbly core: dictionary, board generation, solver, scoring. No DOM. */
 const Core = (() => {
   let W = [];            // sorted word list
   let WSET = new Set();

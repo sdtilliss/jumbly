@@ -1,4 +1,4 @@
-<title>Wordweft</title>
+<title>Jumbly</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
 <style>
@@ -91,7 +91,7 @@ h1, h2, h3, p { margin: 0; }
 .iconbtn[aria-pressed="false"] .off { display: inline; }
 .spacer { width: 44px; }
 
-.logo { position: relative; display: grid; grid-template-columns: repeat(4, 40px); gap: 6px; }
+.logo { position: relative; display: grid; grid-template-columns: repeat(3, 40px); gap: 6px; }
 .logo svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .logo polyline { fill: none; stroke: var(--thread); stroke-width: 13; stroke-linecap: round; }
 .logo span {
@@ -99,7 +99,7 @@ h1, h2, h3, p { margin: 0; }
   background: var(--tile); color: var(--tile-ink); box-shadow: 0 3px 0 var(--tile-edge);
   font: 800 22px/1 var(--f-display);
 }
-.logo span:nth-of-type(n+5) { background: var(--sel); color: var(--sel-ink); box-shadow: 0 3px 0 var(--sel-edge); border-radius: 40%; }
+.logo span:nth-of-type(n+4) { background: var(--sel); color: var(--sel-ink); box-shadow: 0 3px 0 var(--sel-edge); border-radius: 40%; }
 .lede { font-size: 17px; color: var(--ink2); max-width: 36ch; text-wrap: pretty; }
 
 /* ---------- settings ---------- */
@@ -319,9 +319,9 @@ h1, h2, h3, p { margin: 0; }
 
   <section class="screen scroll" id="home">
     <header class="top">
-      <div class="logo" role="img" aria-label="Wordweft">
-        <svg viewBox="0 0 178 86" aria-hidden="true"><polyline points="20,66 158,66"/></svg>
-        <span>W</span><span>O</span><span>R</span><span>D</span><span>W</span><span>E</span><span>F</span><span>T</span>
+      <div class="logo" role="img" aria-label="Jumbly">
+        <svg viewBox="0 0 132 86" aria-hidden="true"><polyline points="20,66 112,66"/></svg>
+        <span>J</span><span>U</span><span>M</span><span>B</span><span>L</span><span>Y</span>
       </div>
       <button class="iconbtn" id="soundBtn" type="button" aria-label="Sound" aria-pressed="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -451,7 +451,7 @@ h1, h2, h3, p { margin: 0; }
 <script>
 (() => {
 'use strict';
-/* Wordweft core: dictionary, board generation, solver, scoring. No DOM. */
+/* Jumbly core: dictionary, board generation, solver, scoring. No DOM. */
 const Core = (() => {
   let W = [];            // sorted word list
   let WSET = new Set();

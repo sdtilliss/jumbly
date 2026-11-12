@@ -23,7 +23,7 @@ const doc = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Wordweft: swipe words out of a grid of letters. Solo or live head-to-head.">
+<meta name="description" content="Jumbly: swipe words out of a grid of letters. Solo or live head-to-head.">
 ${headBits}
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}</style>
 </head>

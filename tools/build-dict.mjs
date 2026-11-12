@@ -27,5 +27,5 @@ for (const w of words) {
   prev = w;
 }
 writeFileSync(new URL('../src/words.js', import.meta.url),
-  '/* Wordweft word list: ENABLE (public domain), 3-16 letters, front-coded. */\nwindow.WORDWEFT_DICT="' + out + '";\n');
+  '/* Jumbly word list: ENABLE (public domain), 3-16 letters, front-coded. */\nwindow.WORDWEFT_DICT="' + out + '";\n');
 console.log(`${words.length} words, ${dropped} blocked, packed ${(out.length / 1024).toFixed(0)} KiB`);

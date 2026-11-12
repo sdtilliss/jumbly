@@ -1,4 +1,4 @@
-# Wordweft
+# Jumbly
 
 A swipe-to-spell word grid game for the browser. Pick a 4×4, 5×5 or 6×6 grid and a round length
 (30 s to 3 min, or no limit when playing alone), then drag through neighbouring letters to spell
