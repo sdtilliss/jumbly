@@ -27,7 +27,7 @@ try {
   await swipe(page, w1.p);
   s = await state(page);
   check(s.found.includes(w1.w), `swiped "${w1.w}" and it counted`);
-  check(s.score === 1 + ((w1.w.length - 3) * (w1.w.length - 2)) / 2, `score is ${s.score} for ${w1.w.length} letters`);
+  check(s.score === w1.w.length - 2, `score is ${s.score} for ${w1.w.length} letters`);
   check((await page.textContent('#chips')).toLowerCase().includes(w1.w), 'chip added');
   if (shots) await page.screenshot({ path: shots + '/game-desktop.png' });
 

@@ -346,9 +346,9 @@ h1, h2, h3, p { margin: 0; }
       <h2>Scoring</h2>
       <div class="ladder">
         <span>Letters</span><b>3</b><b>4</b><b>5</b><b>6</b><b>7</b><b>8</b>
-        <span>Points</span><i>1</i><i>2</i><i>4</i><i>7</i><i>11</i><i>16</i>
+        <span>Points</span><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i>
       </div>
-      <p>Each extra letter is worth more than the last. In a duel, a word only you found counts double.</p>
+      <p>One more point for every extra letter. In a duel, a word only you found counts double.</p>
     </div>
   </section>
 
@@ -677,7 +677,7 @@ function setupRound(o) {
   el.fill.style.transform = 'scaleX(1)';
   el.time.textContent = o.secs ? clockText(o.secs * 1000) : '0:00';
   el.rivals.hidden = o.mode !== 'duel';
-  const best = o.mode === 'solo' ? store.get('best.' + o.size + '.' + o.secs, 0) : 0;
+  const best = o.mode === 'solo' ? store.get('best2.' + o.size + '.' + o.secs, 0) : 0;
   el.fbest.textContent = best ? 'Best ' + best : '';
   setWord('', '', '');
   setCount();
@@ -1042,7 +1042,7 @@ const Res = (() => {
 
   function solo() {
     stop();
-    const key = 'best.' + G.size + '.' + G.secs, prev = store.get(key, 0) || 0;
+    const key = 'best2.' + G.size + '.' + G.secs, prev = store.get(key, 0) || 0;
     if (G.score > prev) store.set(key, G.score);
     head('Solo · ' + G.size + '×' + G.size + ' · ' + (G.secs ? shortTime(G.secs) : 'no limit'),
       G.score > prev && prev > 0 ? 'New best' : G.found.length ? 'Round over' : 'Nothing this time');

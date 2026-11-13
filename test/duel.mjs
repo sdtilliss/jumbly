@@ -3,7 +3,7 @@
 import { start, fonts, check, sleep, live, state, words, swipe, devices } from './lib.mjs';
 import { readFileSync } from 'node:fs';
 const shots = process.env.WW_SHOTS || '', NET = process.env.WW_NET || 'local';
-const pts = n => 1 + ((n - 3) * (n - 2)) / 2;
+const pts = n => n - 2;
 const t = await start();
 try {
   const qs = NET === 'relay' ? `?secs=14&broker=${encodeURIComponent(process.env.WW_BROKER)}` : NET === 'room' ? '?secs=14' : '?secs=14&net=local';

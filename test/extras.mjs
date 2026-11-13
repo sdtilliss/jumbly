@@ -33,7 +33,7 @@ try {
   const qp = await page.evaluate(w => window.__ww.G.all.get(w), qw);
   await swipe(page, qp, 3);
   let s = await state(page);
-  check(s.found.includes(qw) && s.score === 1 + ((qw.length - 3) * (qw.length - 2)) / 2, `swiped "${qw}" over the Qu tile, scored by letters (${s.score})`);
+  check(s.found.includes(qw) && s.score === qw.length - 2, `swiped "${qw}" over the Qu tile, scored by letters (${s.score})`);
   const qw2 = sol.find(w => w !== qw);
   if (qw2) { await page.keyboard.type(qw2, { delay: 10 }); await page.keyboard.press('Enter'); check((await state(page)).found.includes(qw2), `typed "${qw2}" (typing Q then U works)`); }
   await sleep(1100);

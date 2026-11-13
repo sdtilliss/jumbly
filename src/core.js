@@ -23,8 +23,8 @@ const Core = (() => {
 
   const isWord = w => WSET.has(w);
 
-  /* 3 letters = 1, then each extra letter is worth one more than the last step: 1, 2, 4, 7, 11, 16, 22 ... */
-  const points = len => (len < 3 ? 0 : 1 + ((len - 3) * (len - 2)) / 2);
+  /* 3 letters = 1 point, and one more point for every letter after that. */
+  const points = len => (len < 3 ? 0 : len - 2);
 
   const nbCache = {};
   function neighbors(size) {

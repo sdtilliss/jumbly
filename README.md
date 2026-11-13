@@ -28,9 +28,9 @@ node test/serve.mjs 8080
 
 - **Input**: swipe across letters; or tap letters one by one and tap the last one again; or type
   the word and press Enter. Slide back over the previous letter to undo it.
-- **Scoring**: 3 letters = 1 point, then 2, 4, 7, 11, 16, 22 … (each extra letter adds one more
-  than the step before). In a duel, a word both players found scores face value for each; a word
-  only one player found scores double.
+- **Scoring**: 3 letters = 1 point, plus 1 point for every extra letter (4 = 2, 5 = 3, 8 = 6).
+  In a duel, a word both players found scores face value for each; a word only one player found
+  scores double. Solo has no doubling.
 - **Boards**: letters are drawn by weighted frequency with 31–40 % vowels and limits on repeats
   and rare letters, then solved; a board is dealt only if it has enough words and enough long ones.
   `Qu` is one tile.
